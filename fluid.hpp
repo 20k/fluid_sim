@@ -136,7 +136,7 @@ struct fluid_manager
 
     void tick(cl::cl_gl_interop_texture* interop, cl::buffer_manager& buffers, cl::program& program, cl::command_queue& cqueue)
     {
-        float timestep_s = 1600.f/1000.f;
+        float timestep_s = 4600.f/1000.f;
 
         cl::buffer* v1 = get_velocity_buf(0);
         cl::buffer* v2 = get_velocity_buf(1);
@@ -201,7 +201,7 @@ struct fluid_manager
 
         cqueue.exec(program, "fluid_divergence", divergence_args, {800, 600}, {16, 16});
 
-        int pressure_iterations_diff = 40;
+        int pressure_iterations_diff = 80;
 
         for(int i=0; i < pressure_iterations_diff; i++)
         {

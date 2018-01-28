@@ -209,3 +209,36 @@ void fluid_boundary(__read_only image2d_t field_in, __write_only image2d_t field
         write_imagef(field_out, convert_int2(pos), real_val);
     }
 }
+
+__kernel
+void fluid_apply_force(__read_only image2d_t velocity_in, __write_only image2d_t velocity_out, float force, float2 position, float2 direction)
+{
+    sampler_t sam = CLK_NORMALIZED_COORDS_FALSE |
+                    CLK_ADDRESS_CLAMP_TO_EDGE |
+                    CLK_FILTER_LINEAR;
+
+    float2 pos = (float2){get_global_id(0), get_global_id(1)};
+
+    int gw = get_image_width(velocity_in);
+    int gh = get_image_height(velocity_in);
+
+    if(pos.x >= gw || pos.y >= gh)
+        return;
+
+    pos += 0.5f;
+
+    float max_len = 100;
+
+    if(fast_length(pos - position) > max_len)
+        return;
+
+    float flen = 1.f - fast_length(pos - position) / max_len;
+
+    float2 extra = force * direction * flen;
+
+    float4 old_vel = read_imagef(velocity_in, sam, pos);
+
+    float4 sum = old_vel + extra.xyxy;
+
+    write_imagef(velocity_out, convert_int2(pos), sum);
+}
