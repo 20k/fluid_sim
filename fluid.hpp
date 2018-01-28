@@ -11,6 +11,10 @@ struct fluid_manager
 
     cl::buffer* divergence;
 
+    cl::buffer* dye[2];
+
+    int which_dye = 0;
+
     void init(cl::context& ctx, cl::buffer_manager& buffers, cl::command_queue& cqueue)
     {
         velocity[0] = buffers.fetch<cl::buffer>(ctx, nullptr);
@@ -21,8 +25,13 @@ struct fluid_manager
 
         divergence = buffers.fetch<cl::buffer>(ctx, nullptr);
 
+        dye[0] = buffers.fetch<cl::buffer>(ctx, nullptr);
+        dye[1] = buffers.fetch<cl::buffer>(ctx, nullptr);
+
         std::vector<vec4f> idata;
         std::vector<vec4f> zero_data;
+
+        std::vector<vec4f> dye_concentrates;
 
         //for(int i=0; i < 800*600; i++)
 
@@ -41,6 +50,8 @@ struct fluid_manager
             idata.push_back({val.x(), val.y(), 0, 1});
 
             zero_data.push_back({0,0,0,0});
+
+            dye_concentrates.push_back({fabs(val.x()), fabs(val.y()), 0, 1});
         }
 
         velocity[0]->alloc_img(cqueue, idata, (vec2i) {800, 600});
@@ -50,6 +61,9 @@ struct fluid_manager
         pressure[1]->alloc_img(cqueue, zero_data, (vec2i) {800, 600});
 
         divergence->alloc_img(cqueue, zero_data, (vec2i) {800, 600});
+
+        dye[0]->alloc_img(cqueue, dye_concentrates, (vec2i) {800, 600});
+        dye[1]->alloc_img(cqueue, dye_concentrates, (vec2i) {800, 600});
     }
 
     cl::buffer* get_velocity_buf(int offset)
@@ -101,9 +115,28 @@ struct fluid_manager
         cqueue.exec(program, "fluid_boundary", vel_args, {800, 600}, {16, 16});
     }
 
+    void advect_quantity(cl::buffer* quantity[2], int& which, cl::program& program, cl::command_queue& cqueue, float timestep_s)
+    {
+        cl::buffer* q1 = quantity[which];
+        cl::buffer* q2 = quantity[(which + 1) % 2];
+
+        cl::buffer* v1 = get_velocity_buf(0);
+
+        cl::args advect_args;
+
+        advect_args.push_back(v1);
+        advect_args.push_back(q1);
+        advect_args.push_back(q2);
+        advect_args.push_back(timestep_s);
+
+        cqueue.exec(program, "fluid_advection", advect_args, {800, 600}, {16, 16});
+
+        which = (which + 1) % 2;
+    }
+
     void tick(cl::cl_gl_interop_texture* interop, cl::buffer_manager& buffers, cl::program& program, cl::command_queue& cqueue)
     {
-        float timestep_s = 160.f/1000.f;
+        float timestep_s = 1600.f/1000.f;
 
         cl::buffer* v1 = get_velocity_buf(0);
         cl::buffer* v2 = get_velocity_buf(1);
@@ -120,13 +153,15 @@ struct fluid_manager
 
         velocity_boundary(program, cqueue);
 
+        advect_quantity(dye, which_dye, program, cqueue, timestep_s);
+
         int jacobi_iterations_diff = 4;
 
         float dx = 1.f;
 
         for(int i=0; i < jacobi_iterations_diff; i++)
         {
-            float viscosity = 0.01f;
+            float viscosity = 0.0000001f;
 
             float vdt = viscosity * timestep_s;
 
@@ -147,6 +182,8 @@ struct fluid_manager
             cqueue.exec(program, "fluid_jacobi", diffuse_args, {800, 600}, {16, 16});
 
             flip_velocity();
+
+            velocity_boundary(program, cqueue);
         }
 
 
@@ -184,6 +221,8 @@ struct fluid_manager
             cqueue.exec(program, "fluid_jacobi", pressure_args, {800, 600}, {16, 16});
 
             flip_pressure();
+
+            pressure_boundary(program, cqueue);
         }
 
         pressure_boundary(program, cqueue);
@@ -206,7 +245,9 @@ struct fluid_manager
         interop->acquire(cqueue);
 
 
-        cl::buffer* debug_velocity = get_velocity_buf(0);
+        //cl::buffer* debug_velocity = get_velocity_buf(0);
+
+        cl::buffer* debug_velocity = dye[which_dye];
 
         cl::args debug;
         debug.push_back(debug_velocity);
