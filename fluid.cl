@@ -80,7 +80,7 @@ void fluid_jacobi(__read_only image2d_t xvector, __read_only image2d_t bvector, 
     float4 xB = read_imagef(xvector, sam, pos - (float2){0, 1});
     float4 xT = read_imagef(xvector, sam, pos + (float2){0, 1});
 
-    float4 bC = read_imagef(xvector, sam, pos);
+    float4 bC = read_imagef(bvector, sam, pos);
 
     float4 xnew = (xL + xR + xB + xT + alpha * bC) * rbeta;
 
