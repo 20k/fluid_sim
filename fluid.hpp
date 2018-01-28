@@ -173,7 +173,7 @@ struct fluid_manager
 
         advect_quantity(dye, which_dye, program, cqueue, timestep_s);
 
-        int jacobi_iterations_diff = 4;
+        int jacobi_iterations_diff = 10;
 
         float dx = 1.f;
 
@@ -201,7 +201,7 @@ struct fluid_manager
 
             flip_velocity();
 
-            velocity_boundary(program, cqueue);
+            //velocity_boundary(program, cqueue);
         }
 
 
@@ -219,7 +219,7 @@ struct fluid_manager
 
         cqueue.exec(program, "fluid_divergence", divergence_args, {800, 600}, {16, 16});
 
-        int pressure_iterations_diff = 80;
+        int pressure_iterations_diff = 20;
 
         for(int i=0; i < pressure_iterations_diff; i++)
         {
@@ -240,7 +240,7 @@ struct fluid_manager
 
             flip_pressure();
 
-            pressure_boundary(program, cqueue);
+            //pressure_boundary(program, cqueue);
         }
 
         pressure_boundary(program, cqueue);
