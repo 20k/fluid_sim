@@ -36,12 +36,24 @@ int main()
 
     buf->alloc(cqueue, data);
 
+    std::vector<vec4f> idata;
+
+    for(int i=0; i < 800*600; i++)
+    {
+        idata.push_back({(float)i / (800 * 600), 0, 0, 1});
+    }
+
+    cl::buffer* image = buffer_manage.fetch<cl::buffer>(ctx, nullptr);
+
+    image->alloc_img(cqueue, idata, (vec2i){800, 600});
+
     cl::cl_gl_interop_texture* interop = buffer_manage.fetch<cl::cl_gl_interop_texture>(ctx, nullptr, win.getSize().x, win.getSize().y);
     interop->acquire(cqueue);
 
     cl::args none;
-    none.push_back(buf);
+    //none.push_back(buf);
     none.push_back(interop);
+    none.push_back(image);
 
     cqueue.exec(program, "fluid_test", none, {128}, {16});
 
