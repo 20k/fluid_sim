@@ -105,10 +105,11 @@ int main()
 
         interop->gl_blit_me(0, cqueue);
 
-        cqueue.block();
 
         win.display();
         win.clear();
+
+        cqueue.block();
     }
 
     return 0;

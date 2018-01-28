@@ -12,7 +12,7 @@ void fluid_test(__write_only image2d_t screen, __read_only image2d_t test)
 
     sampler_t sam = CLK_NORMALIZED_COORDS_FALSE |
                     CLK_ADDRESS_CLAMP_TO_EDGE |
-                    CLK_FILTER_LINEAR;
+                    CLK_FILTER_NEAREST;
 
     float4 val = read_imagef(test, sam, (int2){ix, iy});
 
@@ -54,7 +54,7 @@ void fluid_jacobi(__read_only image2d_t xvector, __read_only image2d_t bvector, 
 {
     sampler_t sam = CLK_NORMALIZED_COORDS_FALSE |
                     CLK_ADDRESS_CLAMP_TO_EDGE |
-                    CLK_FILTER_LINEAR;
+                    CLK_FILTER_NEAREST;
 
     float2 pos = (float2){get_global_id(0), get_global_id(1)};
 
@@ -92,7 +92,7 @@ void fluid_divergence(__read_only image2d_t vector_field_in, __write_only image2
 {
     sampler_t sam = CLK_NORMALIZED_COORDS_FALSE |
                     CLK_ADDRESS_CLAMP_TO_EDGE |
-                    CLK_FILTER_LINEAR;
+                    CLK_FILTER_NEAREST;
 
     float2 pos = (float2){get_global_id(0), get_global_id(1)};
 
@@ -121,7 +121,7 @@ void fluid_gradient(__read_only image2d_t pressure_field, __read_only image2d_t 
 {
     sampler_t sam = CLK_NORMALIZED_COORDS_FALSE |
                     CLK_ADDRESS_CLAMP_TO_EDGE |
-                    CLK_FILTER_LINEAR;
+                    CLK_FILTER_NEAREST;
 
     float2 pos = (float2){get_global_id(0), get_global_id(1)};
 
@@ -151,8 +151,8 @@ __kernel
 void fluid_render(__read_only image2d_t field, __write_only image2d_t screen)
 {
     sampler_t sam = CLK_NORMALIZED_COORDS_FALSE |
-                    CLK_ADDRESS_CLAMP_TO_EDGE |
-                    CLK_FILTER_LINEAR;
+                    CLK_ADDRESS_NONE |
+                    CLK_FILTER_NEAREST;
 
     float2 pos = (float2){get_global_id(0), get_global_id(1)};
 
@@ -175,8 +175,8 @@ __kernel
 void fluid_boundary(__read_only image2d_t field_in, __write_only image2d_t field_out, float scale)
 {
     sampler_t sam = CLK_NORMALIZED_COORDS_FALSE |
-                    CLK_ADDRESS_CLAMP_TO_EDGE |
-                    CLK_FILTER_LINEAR;
+                    CLK_ADDRESS_NONE |
+                    CLK_FILTER_NEAREST;
 
     int2 ipos = (int2){get_global_id(0), get_global_id(1)};
 
@@ -214,8 +214,8 @@ __kernel
 void fluid_apply_force(__read_only image2d_t velocity_in, __write_only image2d_t velocity_out, float force, float2 position, float2 direction)
 {
     sampler_t sam = CLK_NORMALIZED_COORDS_FALSE |
-                    CLK_ADDRESS_CLAMP_TO_EDGE |
-                    CLK_FILTER_LINEAR;
+                    CLK_ADDRESS_NONE |
+                    CLK_FILTER_NEAREST;
 
     float2 pos = (float2){get_global_id(0), get_global_id(1)};
 
