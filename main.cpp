@@ -63,9 +63,19 @@ int main()
     fluid_manager fluid_manage;
     fluid_manage.init(ctx, buffer_manage, cqueue);
 
+    sf::Clock clk;
+    sf::Keyboard key;
+
     while(win.isOpen())
     {
         sf::Event event;
+
+        double elapsed_s = clk.restart().asMicroseconds() / 1000. / 1000.;
+
+        if(key.isKeyPressed(sf::Keyboard::N))
+        {
+            std::cout << elapsed_s * 1000. << std::endl;
+        }
 
         while(win.pollEvent(event))
         {

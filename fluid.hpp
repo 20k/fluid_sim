@@ -24,9 +24,21 @@ struct fluid_manager
         std::vector<vec4f> idata;
         std::vector<vec4f> zero_data;
 
-        for(int i=0; i < 800*600; i++)
+        //for(int i=0; i < 800*600; i++)
+
+        for(int y=0; y < 600; y++)
+        for(int x=0; x < 800; x++)
         {
-            idata.push_back({randf_s(-0.3f, 0.3f) + (float)i / (800 * 600), 0, 0, 1});
+            vec2f centre = {400, 300};
+
+            vec2f val = {0, 0};
+
+            val.x() = ((vec2f){x, y} - centre).length() / 600.f;
+
+            val.x() += randf_s(-0.2f, 0.2f);
+            val.y() += randf_s(-0.2f, 0.2f);
+
+            idata.push_back({val.x(), val.y(), 0, 1});
 
             zero_data.push_back({0,0,0,0});
         }
@@ -60,9 +72,47 @@ struct fluid_manager
         which_pressure = (which_pressure + 1) % 2;
     }
 
+    void velocity_boundary(cl::program& program, cl::command_queue& cqueue)
+    {
+        //return;
+
+        cl::buffer* v1 = get_velocity_buf(0);
+        cl::buffer* v2 = get_velocity_buf(1);
+
+        float scale = -1;
+
+        cl::args vel_args;
+        vel_args.push_back(v1);
+        vel_args.push_back(v1);
+        vel_args.push_back(scale);
+
+        cqueue.exec(program, "fluid_boundary", vel_args, {800, 600}, {16, 16});
+
+        //flip_velocity();
+    }
+
+    void pressure_boundary(cl::program& program, cl::command_queue& cqueue)
+    {
+        //return;
+
+        cl::buffer* v1 = get_pressure_buf(0);
+        cl::buffer* v2 = get_pressure_buf(1);
+
+        float scale = 1;
+
+        cl::args vel_args;
+        vel_args.push_back(v1);
+        vel_args.push_back(v1);
+        vel_args.push_back(scale);
+
+        cqueue.exec(program, "fluid_boundary", vel_args, {800, 600}, {16, 16});
+
+        //flip_pressure();
+    }
+
     void tick(cl::cl_gl_interop_texture* interop, cl::buffer_manager& buffers, cl::program& program, cl::command_queue& cqueue)
     {
-        float timestep_s = 16.f/1000.f;
+        float timestep_s = 160.f/1000.f;
 
         cl::buffer* v1 = get_velocity_buf(0);
         cl::buffer* v2 = get_velocity_buf(1);
@@ -76,6 +126,8 @@ struct fluid_manager
         cqueue.exec(program, "fluid_advection", advect_args, {800, 600}, {16, 16});
 
         flip_velocity();
+
+        velocity_boundary(program, cqueue);
 
         int jacobi_iterations_diff = 4;
 
@@ -108,6 +160,9 @@ struct fluid_manager
             flip_velocity();
         }
 
+
+        velocity_boundary(program, cqueue);
+
         ///so. First we caclculate divergence, as bvector
         ///then we calculate x, which is the pressure, which is blank initially
         ///then we jacobi iterate the pressure
@@ -120,7 +175,7 @@ struct fluid_manager
 
         cqueue.exec(program, "fluid_divergence", divergence_args, {800, 600}, {16, 16});
 
-        int pressure_iterations_diff = 20;
+        int pressure_iterations_diff = 40;
 
         for(int i=0; i < pressure_iterations_diff; i++)
         {
@@ -142,6 +197,8 @@ struct fluid_manager
             flip_pressure();
         }
 
+        pressure_boundary(program, cqueue);
+
         cl::buffer* cpressure = get_pressure_buf(0);
         cl::buffer* cur_v1 = get_velocity_buf(0);
         cl::buffer* cur_v2 = get_velocity_buf(1);
@@ -154,6 +211,8 @@ struct fluid_manager
         cqueue.exec(program, "fluid_gradient", subtract_args, {800, 600}, {16, 16});
 
         flip_velocity();
+
+        velocity_boundary(program, cqueue);
 
         interop->acquire(cqueue);
 

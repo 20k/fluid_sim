@@ -168,3 +168,42 @@ void fluid_render(__read_only image2d_t field, __write_only image2d_t screen)
 
     write_imagef(screen, convert_int2(pos), (float4)(val.xyz, 1.f));
 }
+
+__kernel
+void fluid_boundary(__read_only image2d_t field_in, __write_only image2d_t field_out, float scale)
+{
+    sampler_t sam = CLK_NORMALIZED_COORDS_FALSE |
+                    CLK_ADDRESS_CLAMP_TO_EDGE |
+                    CLK_FILTER_LINEAR;
+
+    int2 ipos = (int2){get_global_id(0), get_global_id(1)};
+
+    int gw = get_image_width(field_in);
+    int gh = get_image_height(field_in);
+
+    if(ipos.x >= gw || ipos.y >= gh)
+        return;
+
+    float2 offset = {0,0};
+
+    if(ipos.x == 0)
+        offset.x = 1;
+    if(ipos.y == 0)
+        offset.y = 1;
+
+    if(ipos.x == gw - 1)
+        offset.x = -1;
+    if(ipos.y == gh - 1)
+        offset.y = -1;
+
+    if(ipos.x == 0 || ipos.x == gw - 1 || ipos.y == 0 || ipos.y == gh - 1)
+    {
+        float2 pos = convert_float2(ipos) + 0.5f;
+
+        float4 real_val = read_imagef(field_in, sam, pos + offset);
+
+        real_val = real_val * scale;
+
+        write_imagef(field_out, convert_int2(pos), real_val);
+    }
+}
