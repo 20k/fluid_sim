@@ -74,10 +74,7 @@ struct fluid_manager
 
     void velocity_boundary(cl::program& program, cl::command_queue& cqueue)
     {
-        //return;
-
         cl::buffer* v1 = get_velocity_buf(0);
-        cl::buffer* v2 = get_velocity_buf(1);
 
         float scale = -1;
 
@@ -87,14 +84,10 @@ struct fluid_manager
         vel_args.push_back(scale);
 
         cqueue.exec(program, "fluid_boundary", vel_args, {800, 600}, {16, 16});
-
-        //flip_velocity();
     }
 
     void pressure_boundary(cl::program& program, cl::command_queue& cqueue)
     {
-        //return;
-
         cl::buffer* v1 = get_pressure_buf(0);
         cl::buffer* v2 = get_pressure_buf(1);
 
@@ -106,8 +99,6 @@ struct fluid_manager
         vel_args.push_back(scale);
 
         cqueue.exec(program, "fluid_boundary", vel_args, {800, 600}, {16, 16});
-
-        //flip_pressure();
     }
 
     void tick(cl::cl_gl_interop_texture* interop, cl::buffer_manager& buffers, cl::program& program, cl::command_queue& cqueue)
@@ -141,8 +132,6 @@ struct fluid_manager
 
             float alpha = dx * dx / vdt;
             float rbeta = 1.f / (4 + alpha);
-
-            //printf("%f\n", rbeta);
 
             cl::buffer* dv1 = get_velocity_buf(0);
             cl::buffer* dv2 = get_velocity_buf(1);

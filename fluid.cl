@@ -166,6 +166,8 @@ void fluid_render(__read_only image2d_t field, __write_only image2d_t screen)
 
     float4 val = read_imagef(field, sam, pos);
 
+    val = fabs(val);
+
     write_imagef(screen, convert_int2(pos), (float4)(val.xyz, 1.f));
 }
 
