@@ -31,7 +31,28 @@
 		<Compiler>
 			<Add option="-Wall" />
 			<Add option="-fexceptions" />
+			<Add directory="C:/Users/James/Desktop/projects/fluid_fun/deps" />
 		</Compiler>
+		<Linker>
+			<Add option="-lmingw32" />
+			<Add option="-limgui" />
+			<Add option="-lsfml-graphics" />
+			<Add option="-lsfml-audio" />
+			<Add option="-lsfml-network" />
+			<Add option="-lsfml-window" />
+			<Add option="-lsfml-system" />
+			<Add option="-lfreetype" />
+			<Add option="-lopengl32" />
+			<Add option="-lws2_32" />
+			<Add option="-lflac" />
+			<Add option="-lopenal32" />
+			<Add option="-logg" />
+			<Add option="-lopencl" />
+		</Linker>
+		<Unit filename="deps/ocl/logging.cpp" />
+		<Unit filename="deps/ocl/logging.hpp" />
+		<Unit filename="deps/ocl/ocl.cpp" />
+		<Unit filename="deps/ocl/ocl.hpp" />
 		<Unit filename="main.cpp" />
 		<Extensions>
 			<code_completion />
