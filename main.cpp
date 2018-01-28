@@ -3,6 +3,7 @@
 #include <ocl/ocl.hpp>
 #include <ocl/logging.hpp>
 #include <SFML/Graphics.hpp>
+#include "fluid.hpp"
 
 int main()
 {
@@ -40,7 +41,7 @@ int main()
 
     for(int i=0; i < 800*600; i++)
     {
-        idata.push_back({(float)i / (800 * 600), 0, 0, 1});
+        idata.push_back({randf_s(-0.01f, 0.01f) + (float)i / (800 * 600), 0, 0, 1});
     }
 
     cl::buffer* image = buffer_manage.fetch<cl::buffer>(ctx, nullptr);
@@ -59,6 +60,9 @@ int main()
 
     cqueue.block();
 
+    fluid_manager fluid_manage;
+    fluid_manage.init(ctx, buffer_manage, cqueue);
+
     while(win.isOpen())
     {
         sf::Event event;
@@ -68,8 +72,10 @@ int main()
 
         }
 
-        cqueue.exec(program, "fluid_test", none, {800, 600}, {16, 16});
-        cqueue.block();
+        /*cqueue.exec(program, "fluid_test", none, {800, 600}, {16, 16});
+        cqueue.block();*/
+
+        fluid_manage.tick(interop, buffer_manage, program, cqueue);
 
         interop->gl_blit_me(0, cqueue);
 
