@@ -227,10 +227,14 @@ void fluid_apply_force(__read_only image2d_t velocity_in, __write_only image2d_t
 
     pos += 0.5f;
 
-    float max_len = 100;
+    float max_len = 10;
+
+    position.y = gh - position.y;
 
     if(fast_length(pos - position) > max_len)
         return;
+
+    direction.y = -direction.y;
 
     float flen = 1.f - fast_length(pos - position) / max_len;
 

@@ -66,6 +66,11 @@ int main()
     sf::Clock clk;
     sf::Keyboard key;
 
+    sf::Mouse mouse;
+
+    vec2f last_mouse = {0,0};
+    vec2f cur_mouse = {0,0};
+
     while(win.isOpen())
     {
         sf::Event event;
@@ -75,6 +80,17 @@ int main()
         if(key.isKeyPressed(sf::Keyboard::N))
         {
             std::cout << elapsed_s * 1000. << std::endl;
+        }
+
+        auto mpos = mouse.getPosition(win);
+        last_mouse = cur_mouse;
+        cur_mouse = {mpos.x, mpos.y};
+
+        vec2f diff = cur_mouse - last_mouse;
+
+        if(mouse.isButtonPressed(sf::Mouse::Left))
+        {
+            fluid_manage.apply_force(program, cqueue, 1.f, cur_mouse, diff);
         }
 
         while(win.pollEvent(event))
@@ -88,6 +104,8 @@ int main()
         fluid_manage.tick(interop, buffer_manage, program, cqueue);
 
         interop->gl_blit_me(0, cqueue);
+
+        cqueue.block();
 
         win.display();
         win.clear();

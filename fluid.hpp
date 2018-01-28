@@ -134,6 +134,24 @@ struct fluid_manager
         which = (which + 1) % 2;
     }
 
+    void apply_force(cl::program& program, cl::command_queue& cqueue, float force, vec2f location, vec2f direction)
+    {
+        cl::buffer* v1 = get_velocity_buf(0);
+        //cl::buffer* v2 = get_velocity_buf(1);
+
+        cl::args force_args;
+        force_args.push_back(v1);
+        force_args.push_back(v1);
+        force_args.push_back(force);
+        force_args.push_back(location);
+        force_args.push_back(direction);
+
+        cqueue.exec(program, "fluid_apply_force", force_args, {800, 600}, {16, 16});
+
+        //flip_velocity();
+        velocity_boundary(program, cqueue);
+    }
+
     void tick(cl::cl_gl_interop_texture* interop, cl::buffer_manager& buffers, cl::program& program, cl::command_queue& cqueue)
     {
         float timestep_s = 4600.f/1000.f;
