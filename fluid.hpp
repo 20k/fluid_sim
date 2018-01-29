@@ -1,6 +1,11 @@
 #ifndef FLUID_HPP_INCLUDED
 #define FLUID_HPP_INCLUDED
 
+struct fluid_particle
+{
+    vec2f pos = {0,0};
+};
+
 struct fluid_manager
 {
     int which_vel = 0;
@@ -12,6 +17,9 @@ struct fluid_manager
     cl::buffer* divergence;
 
     cl::buffer* dye[2];
+
+    cl::buffer* fluid_particles;
+    std::vector<fluid_particle> cpu_particles;
 
     int which_dye = 0;
 
@@ -28,6 +36,8 @@ struct fluid_manager
         dye[0] = buffers.fetch<cl::buffer>(ctx, nullptr);
         dye[1] = buffers.fetch<cl::buffer>(ctx, nullptr);
 
+        fluid_particles = buffers.fetch<cl::buffer>(ctx, nullptr);
+
         std::vector<vec4f> idata;
         std::vector<vec4f> zero_data;
 
@@ -40,18 +50,21 @@ struct fluid_manager
         {
             vec2f centre = {400, 300};
 
-            vec2f val = {0, 0};
+            vec2f fluid_val = {0,0};
+            vec2f dye_val = {0,0};
 
-            val.x() = ((vec2f){x, y} - centre).length() / 600.f;
+            dye_val.x() = ((vec2f){x, y} - centre).length() / 600.f;
 
-            val.x() += randf_s(-0.2f, 0.2f);
-            val.y() += randf_s(-0.2f, 0.2f);
+            fluid_val.x() += randf_s(-0.2f, 0.2f);
+            fluid_val.y() += randf_s(-0.2f, 0.2f);
 
-            idata.push_back({val.x(), val.y(), 0, 1});
+            dye_val += fluid_val;
+
+            idata.push_back({fluid_val.x(), fluid_val.y(), 0, 1});
 
             zero_data.push_back({0,0,0,0});
 
-            dye_concentrates.push_back({fabs(val.x()), fabs(val.y()), 0, 1});
+            dye_concentrates.push_back({fabs(dye_val.x()), fabs(dye_val.y()), 0, 1});
         }
 
         velocity[0]->alloc_img(cqueue, idata, (vec2i) {800, 600});
@@ -64,6 +77,15 @@ struct fluid_manager
 
         dye[0]->alloc_img(cqueue, dye_concentrates, (vec2i) {800, 600});
         dye[1]->alloc_img(cqueue, dye_concentrates, (vec2i) {800, 600});
+
+        for(int i=0; i < 10000; i++)
+        {
+            vec2f pos = randv<2, float>(0, 600);
+
+            cpu_particles.push_back({pos});
+        }
+
+        fluid_particles->alloc(cqueue, cpu_particles);
     }
 
     cl::buffer* get_velocity_buf(int offset)
@@ -152,6 +174,30 @@ struct fluid_manager
         velocity_boundary(program, cqueue);
     }
 
+    void handle_particles(cl::cl_gl_interop_texture* interop, cl::program& program, cl::command_queue& cqueue, float timestep_s)
+    {
+        interop->acquire(cqueue);
+
+        cl::buffer* v1 = get_velocity_buf(0);
+
+        int num_particles = cpu_particles.size();
+
+        cl::args advect_args;
+        advect_args.push_back(v1);
+        advect_args.push_back(fluid_particles);
+        advect_args.push_back(num_particles);
+        advect_args.push_back(timestep_s);
+
+        cqueue.exec(program, "fluid_advect_particles", advect_args, {num_particles}, {128});
+
+        cl::args render_args;
+        render_args.push_back(fluid_particles);
+        render_args.push_back(num_particles);
+        render_args.push_back(interop);
+
+        cqueue.exec(program, "fluid_render_particles", render_args, {num_particles}, {128});
+    }
+
     void tick(cl::cl_gl_interop_texture* interop, cl::buffer_manager& buffers, cl::program& program, cl::command_queue& cqueue)
     {
         float timestep_s = 4600.f/1000.f;
@@ -221,6 +267,10 @@ struct fluid_manager
 
         int pressure_iterations_diff = 20;
 
+        ///source of slowdown
+        ///need the ability to create specific textures
+        ///aka we want half float single channel
+        ///not full float quad channel
         for(int i=0; i < pressure_iterations_diff; i++)
         {
             float alpha = -(dx * dx);
@@ -272,6 +322,8 @@ struct fluid_manager
         debug.push_back(interop);
 
         cqueue.exec(program, "fluid_render", debug, {800, 600}, {16, 16});
+
+        handle_particles(interop, program, cqueue, timestep_s);
 
     }
 };

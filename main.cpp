@@ -90,7 +90,7 @@ int main()
 
         if(mouse.isButtonPressed(sf::Mouse::Left))
         {
-            fluid_manage.apply_force(program, cqueue, 1.f, cur_mouse, diff);
+            fluid_manage.apply_force(program, cqueue, 0.1f, cur_mouse, diff);
         }
 
         while(win.pollEvent(event))

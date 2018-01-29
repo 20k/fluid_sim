@@ -234,6 +234,8 @@ void fluid_apply_force(__read_only image2d_t velocity_in, __write_only image2d_t
     if(fast_length(pos - position) > max_len)
         return;
 
+    direction = fast_normalize(direction);
+
     direction.y = -direction.y;
 
     float flen = 1.f - fast_length(pos - position) / max_len;
@@ -245,4 +247,63 @@ void fluid_apply_force(__read_only image2d_t velocity_in, __write_only image2d_t
     float4 sum = old_vel + extra.xyxy;
 
     write_imagef(velocity_out, convert_int2(pos), sum);
+}
+
+struct fluid_particle
+{
+    float2 pos;
+};
+
+__kernel
+void fluid_advect_particles(__read_only image2d_t velocity, __global struct fluid_particle* particles, int particles_num, float timestep)
+{
+    int gid = get_global_id(0);
+
+    if(gid >= particles_num)
+        return;
+
+    float2 pos = particles[gid].pos;
+
+    sampler_t sam = CLK_NORMALIZED_COORDS_FALSE |
+                    CLK_ADDRESS_CLAMP_TO_EDGE |
+                    CLK_FILTER_LINEAR;
+
+    pos += 0.5f;
+
+    float rdx = 1.f / GRID_SCALE;
+
+
+    float2 new_pos = pos + timestep * rdx * read_imagef(velocity, sam, pos).xy;
+
+    particles[gid].pos = new_pos - 0.5f;
+}
+
+__kernel
+void fluid_render_particles(__global struct fluid_particle* particles, int particles_num, __write_only image2d_t screen)
+{
+    int gid = get_global_id(0);
+
+    if(gid >= particles_num)
+        return;
+
+    int gw = get_image_width(screen);
+    int gh = get_image_height(screen);
+
+    float2 pos = particles[gid].pos;
+
+    if(pos.x >= gw-2 || pos.x < 1 || pos.y >= gh-2 || pos.y < 1)
+        return;
+
+    for(int y=-1; y <= 1; y++)
+    {
+        for(int x = -1; x <= 1; x++)
+        {
+            if(abs(x) == abs(y) && abs(x) == 1)
+                continue;
+
+            float2 new_pos = pos + (float2){x, y};
+
+            write_imagef(screen, convert_int2(new_pos), (float4)(1,1,1,1));
+        }
+    }
 }
