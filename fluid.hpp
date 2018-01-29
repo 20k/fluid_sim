@@ -21,10 +21,15 @@ struct fluid_manager
     cl::buffer* fluid_particles;
     std::vector<fluid_particle> cpu_particles;
 
+    cl::buffer* noise;
+    cl::buffer* w_of;
+    cl::buffer* wavelets;
+
     int which_dye = 0;
 
     vec2i velocity_dim = {0,0};
     vec2i dye_dim = {0,0};
+    vec2i wavelet_dim = {0,0};
 
     vec2f velocity_to_display_ratio = {0,0};
 
@@ -37,10 +42,11 @@ struct fluid_manager
     ///investigate not using jacobi
     ///TODO:
     ///make fluid particles look nice
-    void init(cl::context& ctx, cl::buffer_manager& buffers, cl::command_queue& cqueue, vec2i vdim, vec2i ddim)
+    void init(cl::context& ctx, cl::buffer_manager& buffers, cl::program& program, cl::command_queue& cqueue, vec2i vdim, vec2i ddim, vec2i ndim)
     {
         velocity_dim = vdim;
         dye_dim = ddim;
+        wavelet_dim = ndim;
 
         velocity_to_display_ratio = (vec2f){dye_dim.x(), dye_dim.y()} / (vec2f){velocity_dim.x(), velocity_dim.y()};
 
@@ -57,13 +63,13 @@ struct fluid_manager
 
         fluid_particles = buffers.fetch<cl::buffer>(ctx, nullptr);
 
+        noise = buffers.fetch<cl::buffer>(ctx, nullptr);
+        w_of = buffers.fetch<cl::buffer>(ctx, nullptr);
+        wavelets = buffers.fetch<cl::buffer>(ctx, nullptr);
+
         std::vector<vec4f> zero_data;
-
         std::vector<vec4f> dye_concentrates;
-
         std::vector<vec2f> velocity_info;
-
-        std::vector<float> zero;
 
         for(int y=0; y < velocity_dim.y(); y++)
         for(int x=0; x < velocity_dim.x(); x++)
@@ -91,6 +97,14 @@ struct fluid_manager
             dye_concentrates.push_back({dye_val.x(), dye_val.y(), 0.f, 1.f});
         }
 
+        std::vector<float> noise_data;
+
+        for(int y=0; y < wavelet_dim.y(); y++)
+        for(int x=0; x < wavelet_dim.x()*2; x++)
+        {
+            noise_data.push_back(randf_s(0.f, 1.f));
+        }
+
         velocity[0]->alloc_img(cqueue, velocity_info, velocity_dim, CL_RG, CL_FLOAT);
         velocity[1]->alloc_img(cqueue, velocity_info, velocity_dim, CL_RG, CL_FLOAT);
 
@@ -102,6 +116,10 @@ struct fluid_manager
         dye[0]->alloc_img(cqueue, dye_concentrates, dye_dim);
         dye[1]->alloc_img(cqueue, dye_concentrates, dye_dim);
 
+        noise->alloc_img(cqueue, noise_data, velocity_dim, CL_R, CL_FLOAT);
+        w_of->alloc_img(cqueue, noise_data, velocity_dim, CL_RG, CL_FLOAT);
+        wavelets->alloc_img(cqueue, noise_data, velocity_dim);
+
         for(int i=0; i < 10000; i++)
         {
             vec2f pos = randv<2, float>(0, 600);
@@ -110,6 +128,13 @@ struct fluid_manager
         }
 
         fluid_particles->alloc(cqueue, cpu_particles);
+
+
+        cl::args w_of_args;
+        w_of_args.push_back(noise);
+        w_of_args.push_back(w_of);
+
+        cqueue.exec(program, "wavelet_w_of", w_of_args, velocity_dim, {16, 16});
     }
 
     cl::buffer* get_velocity_buf(int offset)

@@ -306,3 +306,30 @@ void fluid_render_particles(__global struct fluid_particle* particles, int parti
         }
     }
 }
+
+__kernel
+void wavelet_w_of(__read_only image2d_t noise_in, __write_only image2d_t w_of)
+{
+    sampler_t sam = CLK_NORMALIZED_COORDS_FALSE |
+                    CLK_ADDRESS_CLAMP_TO_EDGE |
+                    CLK_FILTER_NEAREST;
+
+    float2 pos = (float2){get_global_id(0), get_global_id(1)};
+
+    int gw = get_image_width(noise_in);
+    int gh = get_image_height(noise_in);
+
+    if(pos.x >= gw || pos.y >= gh)
+        return;
+
+    pos += 0.5f;
+
+    float centre = read_imagef(noise_in, sam, pos).x;
+
+    float y1 = read_imagef(noise_in, sam, pos + (float2){0.f, 1.f}).x;
+    float x1 = read_imagef(noise_in, sam, pos + (float2){1.f, 0.f}).x;
+
+    float2 w2d = (float2){y1 - centre, -(x1 - centre)};
+
+    write_imagef(w_of, convert_int2(pos), (float4)(w2d, 0, 0));
+}
