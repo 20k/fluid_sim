@@ -43,7 +43,9 @@ struct fluid_manager
 
         std::vector<vec4f> dye_concentrates;
 
-        //for(int i=0; i < 800*600; i++)
+        std::vector<vec2f> velocity_info;
+
+        std::vector<float> zero;
 
         for(int y=0; y < 600; y++)
         for(int x=0; x < 800; x++)
@@ -65,15 +67,18 @@ struct fluid_manager
             zero_data.push_back({0,0,0,0});
 
             dye_concentrates.push_back({fabs(dye_val.x()), fabs(dye_val.y()), 0, 1});
+
+
+            velocity_info.push_back(fluid_val);
         }
 
-        velocity[0]->alloc_img(cqueue, idata, (vec2i) {800, 600});
-        velocity[1]->alloc_img(cqueue, idata, (vec2i) {800, 600});
+        velocity[0]->alloc_img(cqueue, velocity_info, (vec2i) {800, 600}, CL_RG, CL_FLOAT);
+        velocity[1]->alloc_img(cqueue, velocity_info, (vec2i) {800, 600}, CL_RG, CL_FLOAT);
 
-        pressure[0]->alloc_img(cqueue, zero_data, (vec2i) {800, 600});
-        pressure[1]->alloc_img(cqueue, zero_data, (vec2i) {800, 600});
+        pressure[0]->alloc_img(cqueue, zero_data, (vec2i) {800, 600}, CL_R, CL_HALF_FLOAT);
+        pressure[1]->alloc_img(cqueue, zero_data, (vec2i) {800, 600}, CL_R, CL_HALF_FLOAT);
 
-        divergence->alloc_img(cqueue, zero_data, (vec2i) {800, 600});
+        divergence->alloc_img(cqueue, zero_data, (vec2i) {800, 600}, CL_R, CL_HALF_FLOAT);
 
         dye[0]->alloc_img(cqueue, dye_concentrates, (vec2i) {800, 600});
         dye[1]->alloc_img(cqueue, dye_concentrates, (vec2i) {800, 600});

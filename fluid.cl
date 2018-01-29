@@ -66,15 +66,6 @@ void fluid_jacobi(__read_only image2d_t xvector, __read_only image2d_t bvector, 
 
     pos += 0.5f;
 
-    /*float dx = 0.1f;
-    float dt = 0.5f;
-    float n = 10.1; ///viscosity apparently
-
-    //float dt = 16.f / 1000.f;
-
-    float alpha = (dx * dx) / (n * dt);
-    float beta = 1.f/(4 + alpha);*/
-
     float4 xL = read_imagef(xvector, sam, pos - (float2){1, 0});
     float4 xR = read_imagef(xvector, sam, pos + (float2){1, 0});
     float4 xB = read_imagef(xvector, sam, pos - (float2){0, 1});
@@ -111,7 +102,7 @@ void fluid_divergence(__read_only image2d_t vector_field_in, __write_only image2
     float4 wB = read_imagef(vector_field_in, sam, pos - (float2){0, 1});
     float4 wT = read_imagef(vector_field_in, sam, pos + (float2){0, 1});
 
-    float4 div = half_rdx * ((wR.x - wL.x) + (wT.y - wB.y));
+    float div = half_rdx * ((wR.x - wL.x) + (wT.y - wB.y));
 
     write_imagef(out, convert_int2(pos), div);
 }
@@ -242,11 +233,11 @@ void fluid_apply_force(__read_only image2d_t velocity_in, __write_only image2d_t
 
     float2 extra = force * direction * flen;
 
-    float4 old_vel = read_imagef(velocity_in, sam, pos);
+    float2 old_vel = read_imagef(velocity_in, sam, pos).xy;
 
-    float4 sum = old_vel + extra.xyxy;
+    float2 sum = old_vel + extra.xy;
 
-    write_imagef(velocity_out, convert_int2(pos), sum);
+    write_imagef(velocity_out, convert_int2(pos), (float4)(sum.xy, 0, 0));
 }
 
 struct fluid_particle
