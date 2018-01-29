@@ -23,8 +23,23 @@ struct fluid_manager
 
     int which_dye = 0;
 
-    void init(cl::context& ctx, cl::buffer_manager& buffers, cl::command_queue& cqueue)
+    vec2i velocity_dim = {0,0};
+    vec2i dye_dim = {0,0};
+
+    ///TODO:
+    ///decouple fluid dye resolution (aka actual interesting quantity) from underlying fluid simulation
+    ///so we can run it at lower res
+    ///TODO:
+    ///do wavelet fun
+    ///TODO:
+    ///investigate not using jacobi
+    ///TODO:
+    ///make fluid particles look nice
+    void init(cl::context& ctx, cl::buffer_manager& buffers, cl::command_queue& cqueue, vec2i vdim, vec2i ddim)
     {
+        velocity_dim = vdim;
+        dye_dim = ddim;
+
         velocity[0] = buffers.fetch<cl::buffer>(ctx, nullptr);
         velocity[1] = buffers.fetch<cl::buffer>(ctx, nullptr);
 
@@ -38,7 +53,6 @@ struct fluid_manager
 
         fluid_particles = buffers.fetch<cl::buffer>(ctx, nullptr);
 
-        std::vector<vec4f> idata;
         std::vector<vec4f> zero_data;
 
         std::vector<vec4f> dye_concentrates;
@@ -47,41 +61,42 @@ struct fluid_manager
 
         std::vector<float> zero;
 
-        for(int y=0; y < 600; y++)
-        for(int x=0; x < 800; x++)
+        for(int y=0; y < velocity_dim.y(); y++)
+        for(int x=0; x < velocity_dim.x(); x++)
         {
-            vec2f centre = {400, 300};
+            vec2f centre = {velocity_dim.x()/2.f, velocity_dim.y()/2.f};
 
-            vec2f fluid_val = {0,0};
-            vec2f dye_val = {0,0};
-
-            dye_val.x() = ((vec2f){x, y} - centre).length() / 600.f;
-
-            fluid_val.x() += randf_s(-0.2f, 0.2f);
-            fluid_val.y() += randf_s(-0.2f, 0.2f);
-
-            dye_val += fluid_val;
-
-            idata.push_back({fluid_val.x(), fluid_val.y(), 0, 1});
-
-            zero_data.push_back({0,0,0,0});
-
-            dye_concentrates.push_back({fabs(dye_val.x()), fabs(dye_val.y()), 0, 1});
-
+            vec2f fluid_val = randv<2, float>(-0.2f, 0.2f);
 
             velocity_info.push_back(fluid_val);
+
+            zero_data.push_back({0,0,0,0});
         }
 
-        velocity[0]->alloc_img(cqueue, velocity_info, (vec2i) {800, 600}, CL_RG, CL_FLOAT);
-        velocity[1]->alloc_img(cqueue, velocity_info, (vec2i) {800, 600}, CL_RG, CL_FLOAT);
+        for(int y=0; y < dye_dim.y(); y++)
+        for(int x=0; x < dye_dim.x(); x++)
+        {
+            vec2f centre = {dye_dim.x()/2.f, dye_dim.y()/2.f};
 
-        pressure[0]->alloc_img(cqueue, zero_data, (vec2i) {800, 600}, CL_R, CL_HALF_FLOAT);
-        pressure[1]->alloc_img(cqueue, zero_data, (vec2i) {800, 600}, CL_R, CL_HALF_FLOAT);
+            vec2f dye_val;
 
-        divergence->alloc_img(cqueue, zero_data, (vec2i) {800, 600}, CL_R, CL_HALF_FLOAT);
+            dye_val.x() = ((vec2f){x, y} - centre).length() / dye_dim.length();
 
-        dye[0]->alloc_img(cqueue, dye_concentrates, (vec2i) {800, 600});
-        dye[1]->alloc_img(cqueue, dye_concentrates, (vec2i) {800, 600});
+            dye_val += fabs(randv<2, float>(-0.2f, 0.2f));
+
+            dye_concentrates.push_back({dye_val.x(), dye_val.y(), 0.f, 1.f});
+        }
+
+        velocity[0]->alloc_img(cqueue, velocity_info, velocity_dim, CL_RG, CL_FLOAT);
+        velocity[1]->alloc_img(cqueue, velocity_info, velocity_dim, CL_RG, CL_FLOAT);
+
+        pressure[0]->alloc_img(cqueue, zero_data, velocity_dim, CL_R, CL_HALF_FLOAT);
+        pressure[1]->alloc_img(cqueue, zero_data, velocity_dim, CL_R, CL_HALF_FLOAT);
+
+        divergence->alloc_img(cqueue, zero_data, velocity_dim, CL_R, CL_HALF_FLOAT);
+
+        dye[0]->alloc_img(cqueue, dye_concentrates, dye_dim);
+        dye[1]->alloc_img(cqueue, dye_concentrates, dye_dim);
 
         for(int i=0; i < 10000; i++)
         {
@@ -124,7 +139,7 @@ struct fluid_manager
         vel_args.push_back(v1);
         vel_args.push_back(scale);
 
-        cqueue.exec(program, "fluid_boundary", vel_args, {800, 600}, {16, 16});
+        cqueue.exec(program, "fluid_boundary", vel_args, velocity_dim, {16, 16});
     }
 
     void pressure_boundary(cl::program& program, cl::command_queue& cqueue)
@@ -139,10 +154,10 @@ struct fluid_manager
         vel_args.push_back(v1);
         vel_args.push_back(scale);
 
-        cqueue.exec(program, "fluid_boundary", vel_args, {800, 600}, {16, 16});
+        cqueue.exec(program, "fluid_boundary", vel_args, velocity_dim, {16, 16});
     }
 
-    void advect_quantity(cl::buffer* quantity[2], int& which, cl::program& program, cl::command_queue& cqueue, float timestep_s)
+    void advect_quantity(cl::buffer* quantity[2], int& which, cl::program& program, cl::command_queue& cqueue, float timestep_s, vec2i dim)
     {
         cl::buffer* q1 = quantity[which];
         cl::buffer* q2 = quantity[(which + 1) % 2];
@@ -156,7 +171,7 @@ struct fluid_manager
         advect_args.push_back(q2);
         advect_args.push_back(timestep_s);
 
-        cqueue.exec(program, "fluid_advection", advect_args, {800, 600}, {16, 16});
+        cqueue.exec(program, "fluid_advection", advect_args, dim, {16, 16});
 
         which = (which + 1) % 2;
     }
@@ -173,7 +188,7 @@ struct fluid_manager
         force_args.push_back(location);
         force_args.push_back(direction);
 
-        cqueue.exec(program, "fluid_apply_force", force_args, {800, 600}, {16, 16});
+        cqueue.exec(program, "fluid_apply_force", force_args, velocity_dim, {16, 16});
 
         //flip_velocity();
         velocity_boundary(program, cqueue);
@@ -216,13 +231,13 @@ struct fluid_manager
         advect_args.push_back(v2);
         advect_args.push_back(timestep_s);
 
-        cqueue.exec(program, "fluid_advection", advect_args, {800, 600}, {16, 16});
+        cqueue.exec(program, "fluid_advection", advect_args, velocity_dim, {16, 16});
 
         flip_velocity();
 
         velocity_boundary(program, cqueue);
 
-        advect_quantity(dye, which_dye, program, cqueue, timestep_s);
+        advect_quantity(dye, which_dye, program, cqueue, timestep_s, dye_dim);
 
         int jacobi_iterations_diff = 10;
 
@@ -248,7 +263,7 @@ struct fluid_manager
             diffuse_args.push_back(alpha);
             diffuse_args.push_back(rbeta);
 
-            cqueue.exec(program, "fluid_jacobi", diffuse_args, {800, 600}, {16, 16});
+            cqueue.exec(program, "fluid_jacobi", diffuse_args, velocity_dim, {16, 16});
 
             flip_velocity();
 
@@ -268,7 +283,7 @@ struct fluid_manager
         divergence_args.push_back(cv1);
         divergence_args.push_back(divergence);
 
-        cqueue.exec(program, "fluid_divergence", divergence_args, {800, 600}, {16, 16});
+        cqueue.exec(program, "fluid_divergence", divergence_args, velocity_dim, {16, 16});
 
         int pressure_iterations_diff = 20;
 
@@ -291,7 +306,7 @@ struct fluid_manager
             pressure_args.push_back(alpha);
             pressure_args.push_back(rbeta);
 
-            cqueue.exec(program, "fluid_jacobi", pressure_args, {800, 600}, {16, 16});
+            cqueue.exec(program, "fluid_jacobi", pressure_args, velocity_dim, {16, 16});
 
             flip_pressure();
 
@@ -309,7 +324,7 @@ struct fluid_manager
         subtract_args.push_back(cur_v1);
         subtract_args.push_back(cur_v2);
 
-        cqueue.exec(program, "fluid_gradient", subtract_args, {800, 600}, {16, 16});
+        cqueue.exec(program, "fluid_gradient", subtract_args, velocity_dim, {16, 16});
 
         flip_velocity();
 
@@ -326,7 +341,7 @@ struct fluid_manager
         debug.push_back(debug_velocity);
         debug.push_back(interop);
 
-        cqueue.exec(program, "fluid_render", debug, {800, 600}, {16, 16});
+        cqueue.exec(program, "fluid_render", debug, dye_dim, {16, 16});
 
         handle_particles(interop, program, cqueue, timestep_s);
 

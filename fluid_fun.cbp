@@ -27,6 +27,19 @@
 					<Add option="-s" />
 				</Linker>
 			</Target>
+			<Target title="GPU-Profile">
+				<Option output="bin/GPU-Profile/fluid_fun" prefix_auto="1" extension_auto="1" />
+				<Option object_output="obj/GPU-Profile/" />
+				<Option type="1" />
+				<Option compiler="gcc" />
+				<Compiler>
+					<Add option="-O2" />
+					<Add option="-DGPU_PROFILE" />
+				</Compiler>
+				<Linker>
+					<Add option="-s" />
+				</Linker>
+			</Target>
 		</Build>
 		<Compiler>
 			<Add option="-Wall" />
@@ -53,6 +66,8 @@
 		<Unit filename="deps/ocl/logging.hpp" />
 		<Unit filename="deps/ocl/ocl.cpp" />
 		<Unit filename="deps/ocl/ocl.hpp" />
+		<Unit filename="fluid.cl" />
+		<Unit filename="fluid.hpp" />
 		<Unit filename="main.cpp" />
 		<Extensions>
 			<code_completion />
