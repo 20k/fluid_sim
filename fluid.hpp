@@ -23,7 +23,7 @@ struct fluid_manager
 
     cl::buffer* noise;
     cl::buffer* w_of;
-    cl::buffer* wavelets;
+    cl::buffer* upscaled_advected_velocity;
 
     int which_dye = 0;
 
@@ -65,7 +65,7 @@ struct fluid_manager
 
         noise = buffers.fetch<cl::buffer>(ctx, nullptr);
         w_of = buffers.fetch<cl::buffer>(ctx, nullptr);
-        wavelets = buffers.fetch<cl::buffer>(ctx, nullptr);
+        upscaled_advected_velocity = buffers.fetch<cl::buffer>(ctx, nullptr);
 
         std::vector<vec4f> zero_data;
         std::vector<vec4f> dye_concentrates;
@@ -118,7 +118,7 @@ struct fluid_manager
 
         noise->alloc_img(cqueue, noise_data, velocity_dim, CL_R, CL_FLOAT);
         w_of->alloc_img(cqueue, noise_data, velocity_dim, CL_RG, CL_FLOAT);
-        wavelets->alloc_img(cqueue, noise_data, velocity_dim);
+        upscaled_advected_velocity->alloc_img(cqueue, noise_data, wavelet_dim, CL_RG, CL_FLOAT);
 
         for(int i=0; i < 10000; i++)
         {
@@ -186,16 +186,14 @@ struct fluid_manager
         cqueue.exec(program, "fluid_boundary", vel_args, velocity_dim, {16, 16});
     }
 
-    void advect_quantity(cl::buffer* quantity[2], int& which, cl::program& program, cl::command_queue& cqueue, float timestep_s, vec2i dim)
+    void advect_quantity_with(cl::buffer* quantity[2], int& which, cl::program& program, cl::command_queue& cqueue, float timestep_s, vec2i dim, cl::buffer* with)
     {
         cl::buffer* q1 = quantity[which];
         cl::buffer* q2 = quantity[(which + 1) % 2];
 
-        cl::buffer* v1 = get_velocity_buf(0);
-
         cl::args advect_args;
 
-        advect_args.push_back(v1);
+        advect_args.push_back(with);
         advect_args.push_back(q1);
         advect_args.push_back(q2);
         advect_args.push_back(timestep_s);
@@ -368,7 +366,7 @@ struct fluid_manager
 
         velocity_boundary(program, cqueue);
 
-        advect_quantity(dye, which_dye, program, cqueue, timestep_s, dye_dim);
+        advect_quantity_with(dye, which_dye, program, cqueue, timestep_s, dye_dim, get_velocity_buf(0));
 
 
         interop->acquire(cqueue);
