@@ -226,11 +226,13 @@ struct fluid_manager
         render_args.push_back(fluid_particles);
         render_args.push_back(num_particles);
         render_args.push_back(interop);
-        //render_args.push_back(scale);
 
         cqueue.exec(program, "fluid_render_particles", render_args, {num_particles}, {128});
     }
 
+    ///future improvement: When decoupling dye/visuals from velocity
+    ///keep underlying velocity field at full res, try just performing jacobi at lower res
+    ///that way we get full res advection etc, which should maintain most of the quality
     void tick(cl::cl_gl_interop_texture* interop, cl::buffer_manager& buffers, cl::program& program, cl::command_queue& cqueue)
     {
         float timestep_s = 4600.f/1000.f;
@@ -258,7 +260,7 @@ struct fluid_manager
 
         for(int i=0; i < jacobi_iterations_diff; i++)
         {
-            float viscosity = 0.0000001f;
+            float viscosity = 0.00001f;
 
             float vdt = viscosity * timestep_s;
 
