@@ -21,7 +21,7 @@ void fluid_test(__write_only image2d_t screen, __read_only image2d_t test)
     write_imagef(screen, (int2){ix, iy}, val);
 }
 
-#define GRID_SCALE 1.f
+#define GRID_SCALE 1
 
 ///advection is the only time we need to deal with mixed resolution quantities
 ///advection is not a bottleneck, therefore a slow solution is fine

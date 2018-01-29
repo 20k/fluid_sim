@@ -65,7 +65,7 @@ int main()
     vec2i screen_dim = {win.getSize().x, win.getSize().y};
 
     fluid_manager fluid_manage;
-    fluid_manage.init(ctx, buffer_manage, program, cqueue, screen_dim/1, screen_dim, screen_dim*2);
+    fluid_manage.init(ctx, buffer_manage, program, cqueue, screen_dim, screen_dim, screen_dim*2);
 
     sf::Clock clk;
     sf::Keyboard key;

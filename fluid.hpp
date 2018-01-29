@@ -280,11 +280,11 @@ struct fluid_manager
 
         ///ok. Dx seems to = grid scale
         ///if we have a 2x2 deficit in size, we need a 4 grid scale
-        float dx = 4;
+        float dx = 1;
 
         for(int i=0; i < jacobi_iterations_diff; i++)
         {
-            float viscosity = 0.00001f;
+            float viscosity = 0.0000001f;
 
             float vdt = viscosity * timestep_s;
 
