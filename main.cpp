@@ -12,8 +12,10 @@ int main()
 
     lg::log("Test");
 
+    vec2i window_size = {1500, 1000};
+
     sf::RenderWindow win;
-    win.create(sf::VideoMode(800, 600), "Test");
+    win.create(sf::VideoMode(window_size.x(), window_size.y()), "Test");
 
     cl::context ctx;
 
@@ -30,7 +32,7 @@ int main()
 
     std::vector<int> data;
 
-    for(int i=0; i < 800*600; i++)
+    for(int i=0; i < window_size.x() * window_size.y(); i++)
     {
         data.push_back(i);
     }
@@ -39,14 +41,14 @@ int main()
 
     std::vector<vec4f> idata;
 
-    for(int i=0; i < 800*600; i++)
+    for(int i=0; i < window_size.x() * window_size.y(); i++)
     {
-        idata.push_back({randf_s(-0.01f, 0.01f) + (float)i / (800 * 600), 0, 0, 1});
+        idata.push_back({randf_s(-0.01f, 0.01f) + (float)i / (window_size.x() * window_size.y()), 0, 0, 1});
     }
 
     cl::buffer* image = buffer_manage.fetch<cl::buffer>(ctx, nullptr);
 
-    image->alloc_img(cqueue, idata, (vec2i){800, 600});
+    image->alloc_img(cqueue, idata, window_size);
 
     cl::cl_gl_interop_texture* interop = buffer_manage.fetch<cl::cl_gl_interop_texture>(ctx, nullptr, win.getSize().x, win.getSize().y);
     interop->acquire(cqueue);
@@ -63,7 +65,7 @@ int main()
     vec2i screen_dim = {win.getSize().x, win.getSize().y};
 
     fluid_manager fluid_manage;
-    fluid_manage.init(ctx, buffer_manage, cqueue, screen_dim, screen_dim);
+    fluid_manage.init(ctx, buffer_manage, cqueue, screen_dim/2, screen_dim);
 
     sf::Clock clk;
     sf::Keyboard key;
@@ -111,6 +113,8 @@ int main()
         win.display();
         win.clear();
 
+        ///TODO:
+        ///should do one frame ahead shenanigans
         cqueue.block();
     }
 

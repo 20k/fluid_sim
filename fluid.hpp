@@ -26,6 +26,8 @@ struct fluid_manager
     vec2i velocity_dim = {0,0};
     vec2i dye_dim = {0,0};
 
+    vec2f velocity_to_display_ratio = {0,0};
+
     ///TODO:
     ///decouple fluid dye resolution (aka actual interesting quantity) from underlying fluid simulation
     ///so we can run it at lower res
@@ -39,6 +41,8 @@ struct fluid_manager
     {
         velocity_dim = vdim;
         dye_dim = ddim;
+
+        velocity_to_display_ratio = (vec2f){dye_dim.x(), dye_dim.y()} / (vec2f){velocity_dim.x(), velocity_dim.y()};
 
         velocity[0] = buffers.fetch<cl::buffer>(ctx, nullptr);
         velocity[1] = buffers.fetch<cl::buffer>(ctx, nullptr);
@@ -181,6 +185,11 @@ struct fluid_manager
         cl::buffer* v1 = get_velocity_buf(0);
         //cl::buffer* v2 = get_velocity_buf(1);
 
+        location.y() = dye_dim.y() - location.y();
+        direction.y() = -direction.y();
+
+        location = location / velocity_to_display_ratio;
+
         cl::args force_args;
         force_args.push_back(v1);
         force_args.push_back(v1);
@@ -202,11 +211,14 @@ struct fluid_manager
 
         int num_particles = cpu_particles.size();
 
+        vec2f scale = velocity_to_display_ratio;
+
         cl::args advect_args;
         advect_args.push_back(v1);
         advect_args.push_back(fluid_particles);
         advect_args.push_back(num_particles);
         advect_args.push_back(timestep_s);
+        advect_args.push_back(scale);
 
         cqueue.exec(program, "fluid_advect_particles", advect_args, {num_particles}, {128});
 
@@ -214,6 +226,7 @@ struct fluid_manager
         render_args.push_back(fluid_particles);
         render_args.push_back(num_particles);
         render_args.push_back(interop);
+        //render_args.push_back(scale);
 
         cqueue.exec(program, "fluid_render_particles", render_args, {num_particles}, {128});
     }

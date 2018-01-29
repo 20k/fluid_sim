@@ -23,6 +23,8 @@ void fluid_test(__write_only image2d_t screen, __read_only image2d_t test)
 
 #define GRID_SCALE 1.f
 
+///advection is the only time we need to deal with mixed resolution quantities
+///advection is not a bottleneck, therefore a slow solution is fine
 __kernel
 void fluid_advection(__read_only image2d_t velocity, __read_only image2d_t advect_quantity_in, __write_only image2d_t advect_quantity_out, float timestep)
 {
@@ -32,17 +34,23 @@ void fluid_advection(__read_only image2d_t velocity, __read_only image2d_t advec
 
     float2 pos = (float2){get_global_id(0), get_global_id(1)};
 
-    int gw = get_image_width(velocity);
-    int gh = get_image_height(velocity);
+    float gw = get_image_width(advect_quantity_in);
+    float gh = get_image_height(advect_quantity_in);
 
     if(pos.x >= gw || pos.y >= gh)
         return;
+
+    float vw = get_image_width(velocity);
+    float vh = get_image_height(velocity);
+
+    float2 vdim = (float2){vw, vh};
+    float2 adim = (float2){gw, gh};
 
     pos += 0.5f;
 
     float rdx = 1.f / GRID_SCALE;
 
-    float2 new_pos = pos - timestep * rdx * read_imagef(velocity, sam, pos).xy;
+    float2 new_pos = pos - timestep * rdx * read_imagef(velocity, sam, pos * vdim / adim).xy;
 
     float4 new_value = read_imagef(advect_quantity_in, sam, new_pos);
 
@@ -220,14 +228,14 @@ void fluid_apply_force(__read_only image2d_t velocity_in, __write_only image2d_t
 
     float max_len = 10;
 
-    position.y = gh - position.y;
+    //position.y = gh - position.y;
 
     if(fast_length(pos - position) > max_len)
         return;
 
     direction = fast_normalize(direction);
 
-    direction.y = -direction.y;
+    //direction.y = -direction.y;
 
     float flen = 1.f - fast_length(pos - position) / max_len;
 
@@ -246,7 +254,7 @@ struct fluid_particle
 };
 
 __kernel
-void fluid_advect_particles(__read_only image2d_t velocity, __global struct fluid_particle* particles, int particles_num, float timestep)
+void fluid_advect_particles(__read_only image2d_t velocity, __global struct fluid_particle* particles, int particles_num, float timestep, float2 scale)
 {
     int gid = get_global_id(0);
 
@@ -259,14 +267,14 @@ void fluid_advect_particles(__read_only image2d_t velocity, __global struct flui
                     CLK_ADDRESS_CLAMP_TO_EDGE |
                     CLK_FILTER_LINEAR;
 
-    pos += 0.5f;
+    //pos += 0.5f;
 
     float rdx = 1.f / GRID_SCALE;
 
 
-    float2 new_pos = pos + timestep * rdx * read_imagef(velocity, sam, pos).xy;
+    float2 new_pos = pos + timestep * rdx * read_imagef(velocity, sam, pos / scale).xy;
 
-    particles[gid].pos = new_pos - 0.5f;
+    particles[gid].pos = new_pos;// - 0.5f;
 }
 
 __kernel
