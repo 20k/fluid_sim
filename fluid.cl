@@ -449,3 +449,57 @@ void wavelet_upscale(__read_only image2d_t w_of_in, __read_only image2d_t veloci
     ///so we wanna advect in this kernel. Its very expensive to store intermediate data
     ///So: Go back in time, and generate the velocity there as well so we can store that?
 }
+
+__kernel
+void lighting_raytrace_point(float2 point, float radius, int num_tracers, __read_only image2d_t fluid, __write_only image2d_t screen)
+{
+    sampler_t sam = CLK_NORMALIZED_COORDS_FALSE |
+                    CLK_ADDRESS_CLAMP_TO_EDGE |
+                    CLK_FILTER_LINEAR;
+
+    int gid = get_global_id(0);
+
+    if(gid >= num_tracers)
+        return;
+
+    int sw = get_image_width(screen);
+    int sh = get_image_height(screen);
+
+    float angle = 2 * M_PI * (float)gid / num_tracers;
+
+    float2 dir = (float2){cos(angle), sin(angle)};
+
+    float2 finish = point + dir * radius;
+
+    //float max_dir = max(fabs(dir.x), fabs(dir.y));
+
+    //dir = dir / max_dir;
+
+    //int num = max(fabs(dir.x * radius), fabs(dir.y * radius));
+
+    int num = radius;
+
+    float2 cur = point;
+
+    float brightness = 1.f;
+
+    ///after a distance of radius, we should be fully absorbed
+    ///in... a uniform cloud..?
+    for(int i=0; i < num; i++, cur += dir)
+    {
+        float density = read_imagef(fluid, sam, cur + 0.5f).x;
+
+        float amount_reflected = brightness * density * 0.01f;
+
+        brightness -= amount_reflected;
+
+        float distance_curve = 1.f - (float)i / num;
+
+        float extra_bright = 200;
+
+        if(cur.x >= 0 && cur.y >= 0 && cur.x < sw && cur.y < sh)
+        {
+            write_imagef(screen, convert_int2(cur), (float4)(amount_reflected*distance_curve*extra_bright, 0, 0, 1));
+        }
+    }
+}

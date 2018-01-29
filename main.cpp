@@ -4,6 +4,7 @@
 #include <ocl/logging.hpp>
 #include <SFML/Graphics.hpp>
 #include "fluid.hpp"
+#include "lighting.hpp"
 
 int main()
 {
@@ -28,7 +29,7 @@ int main()
 
     cl::buffer_manager buffer_manage;
 
-    cl::buffer* buf = buffer_manage.fetch<cl::buffer>(ctx, nullptr);
+    /*cl::buffer* buf = buffer_manage.fetch<cl::buffer>(ctx, nullptr);
 
     std::vector<int> data;
 
@@ -48,24 +49,29 @@ int main()
 
     cl::buffer* image = buffer_manage.fetch<cl::buffer>(ctx, nullptr);
 
-    image->alloc_img(cqueue, idata, window_size);
+    image->alloc_img(cqueue, idata, window_size);*/
 
     cl::cl_gl_interop_texture* interop = buffer_manage.fetch<cl::cl_gl_interop_texture>(ctx, nullptr, win.getSize().x, win.getSize().y);
     interop->acquire(cqueue);
 
-    cl::args none;
+    /*cl::args none;
     //none.push_back(buf);
     none.push_back(interop);
     none.push_back(image);
 
     cqueue.exec(program, "fluid_test", none, {128}, {16});
 
-    cqueue.block();
+    cqueue.block();*/
 
     vec2i screen_dim = {win.getSize().x, win.getSize().y};
 
     fluid_manager fluid_manage;
     fluid_manage.init(ctx, buffer_manage, program, cqueue, screen_dim, screen_dim, screen_dim*2);
+
+
+    lighting_manager lighting_manage;
+    lighting_manage.init(ctx, buffer_manage, program, cqueue, screen_dim);
+
 
     sf::Clock clk;
     sf::Keyboard key;
@@ -106,6 +112,8 @@ int main()
         cqueue.block();*/
 
         fluid_manage.tick(interop, buffer_manage, program, cqueue);
+
+        lighting_manage.tick(interop, buffer_manage, program, cqueue, cur_mouse, fluid_manage.dye[fluid_manage.which_dye]);
 
         interop->gl_blit_me(0, cqueue);
 
