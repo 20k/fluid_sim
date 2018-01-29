@@ -105,7 +105,8 @@ int main()
 
         while(win.pollEvent(event))
         {
-
+            if(event.type == sf::Event::Closed)
+                win.close();
         }
 
         /*cqueue.exec(program, "fluid_test", none, {800, 600}, {16, 16});
@@ -113,7 +114,7 @@ int main()
 
         fluid_manage.tick(interop, buffer_manage, program, cqueue);
 
-        lighting_manage.tick(interop, buffer_manage, program, cqueue, cur_mouse, fluid_manage.dye[fluid_manage.which_dye]);
+        //lighting_manage.tick(interop, buffer_manage, program, cqueue, cur_mouse, fluid_manage.dye[fluid_manage.which_dye]);
 
         interop->gl_blit_me(0, cqueue);
 
