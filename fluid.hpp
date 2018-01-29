@@ -277,8 +277,6 @@ struct fluid_manager
 
         velocity_boundary(program, cqueue);
 
-        advect_quantity(dye, which_dye, program, cqueue, timestep_s, dye_dim);
-
         int jacobi_iterations_diff = 10;
 
         float dx = 1.f;
@@ -370,9 +368,10 @@ struct fluid_manager
 
         velocity_boundary(program, cqueue);
 
+        advect_quantity(dye, which_dye, program, cqueue, timestep_s, dye_dim);
+
+
         interop->acquire(cqueue);
-
-
         //cl::buffer* debug_velocity = get_velocity_buf(0);
 
         cl::buffer* debug_velocity = dye[which_dye];
