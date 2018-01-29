@@ -333,3 +333,28 @@ void wavelet_w_of(__read_only image2d_t noise_in, __write_only image2d_t w_of)
 
     write_imagef(w_of, convert_int2(pos), (float4)(w2d, 0, 0));
 }
+
+float2 get_y_of(float2 pos, __read_only image2d_t w_of_in, float imin, float imax, float2 dim)
+{
+    sampler_t sam = CLK_NORMALIZED_COORDS_TRUE |
+                    CLK_ADDRESS_REPEAT |
+                    CLK_FILTER_NEAREST;
+    float sum = 0;
+
+    for(float i = imin; i < imax; i+=1.f)
+    {
+        float2 coord = pow(2, i) * pos;
+
+        float w_of = read_imagef(w_of_in, sam, (coord + 0.5f) / dim).x;
+
+        sum += w_of * pow(2, -(5.f/6) * (i - imin));
+    }
+
+    return sum;
+}
+
+__kernel
+void wavelet_upscale(__read_only image2d_t w_of_in, __write_only image2d_t velocity_out)
+{
+
+}
