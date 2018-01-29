@@ -278,7 +278,9 @@ struct fluid_manager
 
         int jacobi_iterations_diff = 10;
 
-        float dx = 1.f;
+        ///ok. Dx seems to = grid scale
+        ///if we have a 2x2 deficit in size, we need a 4 grid scale
+        float dx = 4;
 
         for(int i=0; i < jacobi_iterations_diff; i++)
         {
