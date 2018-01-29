@@ -393,13 +393,10 @@ struct fluid_manager
         cl::buffer* ndye = dye[which_dye];
         #endif // UNSUCCESSFUL_UPSCALE
 
-        //cl::buffer* ndye = dye[(which_dye + 1) % 2];
 
         interop->acquire(cqueue);
-        //cl::buffer* debug_velocity = get_velocity_buf(0);
 
         cl::buffer* debug_velocity = ndye;
-        //cl::buffer* debug_velocity = dye[which_dye];
 
         cl::args debug;
         debug.push_back(debug_velocity);
