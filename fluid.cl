@@ -345,9 +345,9 @@ float2 get_y_of(float2 pos, __read_only image2d_t w_of_in, float imin, float ima
 
     for(float i = imin; i < imax; i+=1.f)
     {
-        float2 coord = pow(2, i) * pos;
+        float2 coord = pow(2, i) * (pos + 0.5f);
 
-        float w_of = read_imagef(w_of_in, sam, (coord + 0.5f) / dim).x;
+        float w_of = read_imagef(w_of_in, sam, coord / dim).x;
 
         sum += w_of * pow(2, -(5.f/6) * (i - imin));
     }
@@ -357,11 +357,31 @@ float2 get_y_of(float2 pos, __read_only image2d_t w_of_in, float imin, float ima
 
 float calculate_energy(float2 vel)
 {
-    float len = fast_length(vel);
+    /*float len = fast_length(vel);
 
-    float nrg = 0.5 * len * len;
+    //float nrg = 0.5 * len * len;
 
-    return (0.5f + nrg) * 10;
+    len += 0.5f;
+
+    len *= 10.f;
+
+    len = max(len, 0.001f);
+
+    len = 1.f / len;
+
+    len = clamp(len, 0.00001f, 0.8f);
+
+    return len;
+
+    len = clamp(len, 0.0001f, 1.f);
+
+    float nrg = 1.f / len;
+
+    //return 1.f;
+
+    return (nrg) * 1000;*/
+
+    return 10.f;
 }
 
 ///runs in upscaled space
@@ -380,9 +400,12 @@ void wavelet_upscale(__read_only image2d_t w_of_in, __read_only image2d_t veloci
                     CLK_ADDRESS_REPEAT |
                     CLK_FILTER_LINEAR;
 
-    float2 interpolated = read_imagef(velocity_in, sam, (pos + 0.5f) / (float2){gw, gh}).xy;
+    float imin = -4;
+    float imax = -1;
 
-    float2 y_of = get_y_of(pos, w_of_in, 1, 4, (float2){gw, gh});
+    /*float2 interpolated = read_imagef(velocity_in, sam, (pos + 0.5f) / (float2){gw, gh}).xy;
+
+    float2 y_of = get_y_of(pos, w_of_in, imin, imax, (float2){gw, gh});
 
     ///ok we're gunna cheat a little bit
     ///they use spectral energy something something to estimate in the complex case
@@ -391,7 +414,9 @@ void wavelet_upscale(__read_only image2d_t w_of_in, __read_only image2d_t veloci
     ///neither of these are really acceptable, so just blatantly cheat and use velocity to estimate local energy
     float et_term = calculate_energy(interpolated);
 
-    float2 final_velocity = interpolated + pow(2.f, -5.f/6) * et_term * y_of;
+    float2 final_velocity = interpolated + pow(2.f, -5.f/6) * et_term * y_of;*/
+
+    float2 final_velocity = read_imagef(velocity_in, sam, (pos + 0.5f) / (float2){gw, gh}).xy;
 
     /*float rdx = 1.f / GRID_SCALE;
 
@@ -407,9 +432,9 @@ void wavelet_upscale(__read_only image2d_t w_of_in, __read_only image2d_t veloci
 
     float2 new_value = read_imagef(velocity_in, sam, (back_in_time_pos + 0.5f) / (float2){gw, gh}).xy;
 
-    float2 new_y_of = get_y_of(back_in_time_pos, w_of_in, 1, 4, (float2){gw, gh});
+    float2 new_y_of = get_y_of(back_in_time_pos, w_of_in, imin, imax, (float2){gw, gh});
 
-    float new_et_term = calculate_energy(final_velocity);
+    float new_et_term = calculate_energy(new_value);
 
     float2 advected_velocity = new_value + pow(2.f, -5.f/6) * new_et_term * new_y_of;
 

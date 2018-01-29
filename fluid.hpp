@@ -186,7 +186,7 @@ struct fluid_manager
         cqueue.exec(program, "fluid_boundary", vel_args, velocity_dim, {16, 16});
     }
 
-    void advect_quantity_with(cl::buffer* quantity[2], int& which, cl::program& program, cl::command_queue& cqueue, float timestep_s, vec2i dim, cl::buffer* with)
+    void advect_quantity_with(cl::buffer* quantity[2], int& which, cl::program& program, cl::command_queue& cqueue, float timestep_s, vec2i dim, cl::buffer* with, bool flip)
     {
         cl::buffer* q1 = quantity[which];
         cl::buffer* q2 = quantity[(which + 1) % 2];
@@ -200,7 +200,8 @@ struct fluid_manager
 
         cqueue.exec(program, "fluid_advection", advect_args, dim, {16, 16});
 
-        which = (which + 1) % 2;
+        if(flip)
+            which = (which + 1) % 2;
     }
 
     void apply_force(cl::program& program, cl::command_queue& cqueue, float force, vec2f location, vec2f direction)
@@ -376,13 +377,20 @@ struct fluid_manager
 
         cqueue.exec(program, "wavelet_upscale", upscale_args, wavelet_dim, {16, 16});
 
-        advect_quantity_with(dye, which_dye, program, cqueue, timestep_s, dye_dim, upscaled_advected_velocity);
+        ///the problem is the dye advection is actually affecting the simulation
+        ///AKA BAD, REALLY BAD
+        advect_quantity_with(dye, which_dye, program, cqueue, timestep_s, dye_dim, get_velocity_buf(0), true);
 
+        advect_quantity_with(dye, which_dye, program, cqueue, timestep_s, dye_dim, upscaled_advected_velocity, false);
+
+        cl::buffer* ndye = dye[(which_dye + 1) % 2];
+        //cl::buffer* ndye = dye[(which_dye + 1) % 2];
 
         interop->acquire(cqueue);
         //cl::buffer* debug_velocity = get_velocity_buf(0);
 
-        cl::buffer* debug_velocity = dye[which_dye];
+        cl::buffer* debug_velocity = ndye;
+        //cl::buffer* debug_velocity = dye[which_dye];
 
         cl::args debug;
         debug.push_back(debug_velocity);
