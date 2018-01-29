@@ -147,7 +147,7 @@ void fluid_gradient(__read_only image2d_t pressure_field, __read_only image2d_t 
 }
 
 __kernel
-void fluid_render(__read_only image2d_t field, __write_only image2d_t screen)
+void fluid_render(__read_only image2d_t field, __write_only image2d_t screen, __read_only image2d_t boundaries)
 {
     sampler_t sam = CLK_NORMALIZED_COORDS_FALSE |
                     CLK_ADDRESS_NONE |
@@ -166,6 +166,11 @@ void fluid_render(__read_only image2d_t field, __write_only image2d_t screen)
     float4 val = read_imagef(field, sam, pos);
 
     val = fabs(val);
+
+    float2 bound = read_imagef(boundaries, sam, pos).xy;
+
+    if(bound.x == 1)
+        val.xyz = 1;
 
     write_imagef(screen, convert_int2(pos), (float4)(val.xyz, 1.f));
 }
@@ -208,6 +213,114 @@ void fluid_boundary(__read_only image2d_t field_in, __write_only image2d_t field
         write_imagef(field_out, convert_int2(pos), real_val);
     }
 }
+
+float2 angle_to_offset(float angle)
+{
+    float2 normal = {cos(angle), sin(angle)};
+
+    ///round off any error
+    normal = round(normal * 10.f) / 10.f;
+
+    float2 res = {0,0};
+
+    if(normal.x > 0)
+        res.x = 1;
+    if(normal.x < 0)
+        res.x = -1;
+
+    if(normal.y > 0)
+        res.y = 1;
+    if(normal.y < 0)
+        res.y = -1;
+
+    return res;
+}
+
+///ok so what we really wanna do is
+///find all possible unoccupied normals
+///jump to that pixel
+///pretend we're that pixel
+///do normal thing
+__kernel
+void fluid_boundary_tex(__read_only image2d_t field_in, __write_only image2d_t field_out, float scale, __read_only image2d_t boundary_texture)
+{
+    int2 ipos = (int2){get_global_id(0), get_global_id(1)};
+
+    int gw = get_image_width(field_in);
+    int gh = get_image_height(field_in);
+
+    if(ipos.x >= gw || ipos.y >= gh)
+        return;
+
+    float2 pos = convert_float2(ipos);
+
+    sampler_t sam = CLK_NORMALIZED_COORDS_FALSE |
+                    CLK_ADDRESS_CLAMP_TO_EDGE |
+                    CLK_FILTER_LINEAR;
+
+    float2 vals = read_imagef(boundary_texture, sam, convert_float2(ipos) + 0.5f).xy;
+
+    if(vals.x != 1)
+        return;
+
+    ///should work this out automatically in the future
+    ///bit of a ballache to handle the edge cases so for the moment this is explicit and
+    ///buyer beware
+    /*float angle = vals.y;
+
+    float2 normal = {cos(angle), sin(angle)};
+
+    float4 real_val = read_imagef(field_in, sam, convert_float2(ipos) + normal + 0.5f);
+
+    real_val = real_val * scale;
+
+    write_imagef(field_out, ipos, real_val);*/
+
+    ///ok. Wheel one way until we find a boundary, even if we are one
+    ///wheel the same way looking for another boundary
+    ///if we find another boundary, offset by one and then find normal and offset by normal
+    ///then update initial guess
+    ///if we are in a block who cares
+    /*float tl = 0;
+
+    float angles = 8;
+
+    int range_start = -999;
+
+    for(int i=0; i < angles; i++)
+    {
+        float angle_frac = 2 * M_PI * (float)i / angles;
+
+        float2 offset = angle_to_offset(angle_frac);
+
+        float2 nval = read_imagef(boundary_texture, sam, pos + 0.5f + offset).xy;
+
+        if(nval)
+    }*/
+
+
+    ///there must be a good way to find a normal here!
+    ///just assume its a straight line or something?
+}
+
+__kernel
+void fluid_set_boundary(__write_only image2d_t buffer, float2 pos, float angle)
+{
+    int gid = get_global_id(0);
+
+    ///yup
+    if(gid >= 1)
+        return;
+
+    int gw = get_image_width(buffer);
+    int gh = get_image_height(buffer);
+
+    if(any(pos < 0) || any(pos >= (float2){gw, gh}))
+       return;
+
+    write_imagef(buffer, convert_int2(pos), (float4)(1.f, angle, 0, 0));
+}
+
 
 __kernel
 void fluid_apply_force(__read_only image2d_t velocity_in, __write_only image2d_t velocity_out, float force, float2 position, float2 direction)

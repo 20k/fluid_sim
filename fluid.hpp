@@ -16,6 +16,8 @@ struct fluid_manager
 
     cl::buffer* divergence;
 
+    cl::buffer* boundaries;
+
     cl::buffer* dye[2];
 
     cl::buffer* fluid_particles;
@@ -57,6 +59,8 @@ struct fluid_manager
         pressure[1] = buffers.fetch<cl::buffer>(ctx, nullptr);
 
         divergence = buffers.fetch<cl::buffer>(ctx, nullptr);
+
+        boundaries = buffers.fetch<cl::buffer>(ctx, nullptr);
 
         dye[0] = buffers.fetch<cl::buffer>(ctx, nullptr);
         dye[1] = buffers.fetch<cl::buffer>(ctx, nullptr);
@@ -112,6 +116,7 @@ struct fluid_manager
         pressure[1]->alloc_img(cqueue, zero_data, velocity_dim, CL_R, CL_HALF_FLOAT);
 
         divergence->alloc_img(cqueue, zero_data, velocity_dim, CL_R, CL_HALF_FLOAT);
+        boundaries->alloc_img(cqueue, zero_data, velocity_dim, CL_RG, CL_HALF_FLOAT);
 
         dye[0]->alloc_img(cqueue, dye_concentrates, dye_dim);
         dye[1]->alloc_img(cqueue, dye_concentrates, dye_dim);
@@ -169,12 +174,16 @@ struct fluid_manager
         vel_args.push_back(scale);
 
         cqueue.exec(program, "fluid_boundary", vel_args, velocity_dim, {16, 16});
+
+        vel_args.push_back(boundaries);
+
+        cqueue.exec(program, "fluid_boundary_tex", vel_args, velocity_dim, {16, 16});
     }
 
     void pressure_boundary(cl::program& program, cl::command_queue& cqueue)
     {
         cl::buffer* v1 = get_pressure_buf(0);
-        cl::buffer* v2 = get_pressure_buf(1);
+        //cl::buffer* v2 = get_pressure_buf(1);
 
         float scale = 1;
 
@@ -184,6 +193,10 @@ struct fluid_manager
         vel_args.push_back(scale);
 
         cqueue.exec(program, "fluid_boundary", vel_args, velocity_dim, {16, 16});
+
+        vel_args.push_back(boundaries);
+
+        cqueue.exec(program, "fluid_boundary_tex", vel_args, velocity_dim, {16, 16});
     }
 
     void advect_quantity_with(cl::buffer* quantity[2], int& which, cl::program& program, cl::command_queue& cqueue, float timestep_s, vec2i dim, cl::buffer* with, bool flip)
@@ -225,6 +238,20 @@ struct fluid_manager
 
         //flip_velocity();
         velocity_boundary(program, cqueue);
+    }
+
+    void write_boundary(cl::program& program, cl::command_queue& cqueue, vec2f location, float angle)
+    {
+        location = location / velocity_to_display_ratio;
+
+        location.y() = velocity_dim.y() - location.y();
+
+        cl::args bound_dim;
+        bound_dim.push_back(boundaries);
+        bound_dim.push_back(location);
+        bound_dim.push_back(angle);
+
+        cqueue.exec(program, "fluid_set_boundary", bound_dim, {1}, {1});
     }
 
     void handle_particles(cl::cl_gl_interop_texture* interop, cl::program& program, cl::command_queue& cqueue, float timestep_s)
@@ -403,6 +430,7 @@ struct fluid_manager
         cl::args debug;
         debug.push_back(debug_velocity);
         debug.push_back(interop);
+        debug.push_back(boundaries);
 
         cqueue.exec(program, "fluid_render", debug, dye_dim, {16, 16});
 

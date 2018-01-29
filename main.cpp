@@ -103,6 +103,11 @@ int main()
             fluid_manage.apply_force(program, cqueue, 0.1f, cur_mouse, diff);
         }
 
+        if(mouse.isButtonPressed(sf::Mouse::Right))
+        {
+            fluid_manage.write_boundary(program, cqueue, cur_mouse, 0.f);
+        }
+
         while(win.pollEvent(event))
         {
             if(event.type == sf::Event::Closed)
