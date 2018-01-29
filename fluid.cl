@@ -334,11 +334,12 @@ void wavelet_w_of(__read_only image2d_t noise_in, __write_only image2d_t w_of)
     write_imagef(w_of, convert_int2(pos), (float4)(w2d, 0, 0));
 }
 
+///dim is UPSCALED dimension, pos is upscaled pos
 float2 get_y_of(float2 pos, __read_only image2d_t w_of_in, float imin, float imax, float2 dim)
 {
     sampler_t sam = CLK_NORMALIZED_COORDS_TRUE |
                     CLK_ADDRESS_REPEAT |
-                    CLK_FILTER_NEAREST;
+                    CLK_FILTER_LINEAR;
     float sum = 0;
 
     for(float i = imin; i < imax; i+=1.f)
@@ -353,8 +354,57 @@ float2 get_y_of(float2 pos, __read_only image2d_t w_of_in, float imin, float ima
     return sum;
 }
 
+///runs in upscaled space
 __kernel
-void wavelet_upscale(__read_only image2d_t w_of_in, __write_only image2d_t velocity_out)
+void wavelet_upscale(__read_only image2d_t w_of_in, __read_only image2d_t velocity_in, __write_only image2d_t upscaled_velocity_out, float timestep)
 {
+    float2 pos = (float2){get_global_id(0), get_global_id(1)};
 
+    int gw = get_image_width(upscaled_velocity_out);
+    int gh = get_image_height(upscaled_velocity_out);
+
+    if(pos.x >= gw || pos.y >= gh)
+        return;
+
+    sampler_t sam = CLK_NORMALIZED_COORDS_TRUE |
+                    CLK_ADDRESS_REPEAT |
+                    CLK_FILTER_LINEAR;
+
+    float2 interpolated = read_imagef(velocity_in, sam, (pos + 0.5f) / (float2){gw, gh}).xy;
+
+    float2 y_of = get_y_of(pos, w_of_in, 1, 4, (float2){gw, gh});
+
+    ///ok we're gunna cheat a little bit
+    ///they use spectral energy something something to estimate in the complex case
+    ///to get local weighting of essentially energy to correctly only inject energy with forward scattering
+    ///and in the simple case they use a global weight
+    ///neither of these are really acceptable, so just blatantly cheat and use velocity to estimate local energy
+    float et_term = fast_length(interpolated);
+
+    float2 final_velocity = interpolated + pow(2.f, -5.f/6) * et_term * y_of;
+
+    /*float rdx = 1.f / GRID_SCALE;
+
+    float2 new_pos = pos - timestep * rdx * read_imagef(velocity, sam, pos * vdim / adim).xy;
+
+    float4 new_value = read_imagef(advect_quantity_in, sam, new_pos);
+
+    write_imagef(advect_quantity_out, convert_int2(pos), new_value);*/
+
+    float rdx = 1.f / GRID_SCALE;
+
+    float2 back_in_time_pos = pos - timestep * rdx * final_velocity;
+
+    float2 new_value = read_imagef(velocity_in, sam, (back_in_time_pos + 0.5f) / (float2){gw, gh}).xy;
+
+    float2 new_y_of = get_y_of(back_in_time_pos, w_of_in, 1, 4, (float2){gw, gh});
+
+    float new_et_term = fast_length(final_velocity);
+
+    float2 advected_velocity = new_value + pow(2.f, -5.f/6) * new_et_term * new_y_of;
+
+    write_imagef(upscaled_velocity_out, convert_int2(pos), (float4)(advected_velocity, 0, 0));
+
+    ///so we wanna advect in this kernel. Its very expensive to store intermediate data
+    ///So: Go back in time, and generate the velocity there as well so we can store that?
 }
