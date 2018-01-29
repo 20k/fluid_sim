@@ -367,6 +367,8 @@ struct fluid_manager
 
         velocity_boundary(program, cqueue);
 
+
+        #ifdef UNSUCCESSFUL_UPSCALE
         cl::buffer* velocity_to_upscale = get_velocity_buf(0);
 
         cl::args upscale_args;
@@ -376,14 +378,21 @@ struct fluid_manager
         upscale_args.push_back(timestep_s);
 
         cqueue.exec(program, "wavelet_upscale", upscale_args, wavelet_dim, {16, 16});
+        #endif // UNSUCCESSFUL_UPSCALE
 
         ///the problem is the dye advection is actually affecting the simulation
         ///AKA BAD, REALLY BAD
         advect_quantity_with(dye, which_dye, program, cqueue, timestep_s, dye_dim, get_velocity_buf(0), true);
 
+        #ifdef UNSUCCESSFUL_UPSCALE
         advect_quantity_with(dye, which_dye, program, cqueue, timestep_s, dye_dim, upscaled_advected_velocity, false);
 
+
         cl::buffer* ndye = dye[(which_dye + 1) % 2];
+        #else
+        cl::buffer* ndye = dye[which_dye];
+        #endif // UNSUCCESSFUL_UPSCALE
+
         //cl::buffer* ndye = dye[(which_dye + 1) % 2];
 
         interop->acquire(cqueue);

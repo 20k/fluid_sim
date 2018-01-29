@@ -357,7 +357,7 @@ float2 get_y_of(float2 pos, __read_only image2d_t w_of_in, float imin, float ima
 
 float calculate_energy(float2 vel)
 {
-    /*float len = fast_length(vel);
+    float len = fast_length(vel);
 
     //float nrg = 0.5 * len * len;
 
@@ -371,7 +371,7 @@ float calculate_energy(float2 vel)
 
     len = clamp(len, 0.00001f, 0.8f);
 
-    return len;
+    return len * 10;
 
     len = clamp(len, 0.0001f, 1.f);
 
@@ -379,9 +379,15 @@ float calculate_energy(float2 vel)
 
     //return 1.f;
 
-    return (nrg) * 1000;*/
+    return (nrg) * 1000;
 
-    return 10.f;
+    /*float len = fast_length(vel);
+
+    float nrg = 0.5 * len * len;
+
+    return nrg * 100;*/
+
+    //return 10.f;
 }
 
 ///runs in upscaled space
@@ -400,8 +406,8 @@ void wavelet_upscale(__read_only image2d_t w_of_in, __read_only image2d_t veloci
                     CLK_ADDRESS_REPEAT |
                     CLK_FILTER_LINEAR;
 
-    float imin = -4;
-    float imax = -1;
+    float imin = -6;
+    float imax = 2;
 
     /*float2 interpolated = read_imagef(velocity_in, sam, (pos + 0.5f) / (float2){gw, gh}).xy;
 
