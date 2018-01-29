@@ -335,6 +335,7 @@ void wavelet_w_of(__read_only image2d_t noise_in, __write_only image2d_t w_of)
 }
 
 ///dim is UPSCALED dimension, pos is upscaled pos
+///should absolutely be caching get y of
 float2 get_y_of(float2 pos, __read_only image2d_t w_of_in, float imin, float imax, float2 dim)
 {
     sampler_t sam = CLK_NORMALIZED_COORDS_TRUE |
@@ -352,6 +353,15 @@ float2 get_y_of(float2 pos, __read_only image2d_t w_of_in, float imin, float ima
     }
 
     return sum;
+}
+
+float calculate_energy(float2 vel)
+{
+    float len = fast_length(vel);
+
+    float nrg = 0.5 * len * len;
+
+    return (0.5f + nrg) * 10;
 }
 
 ///runs in upscaled space
@@ -379,7 +389,7 @@ void wavelet_upscale(__read_only image2d_t w_of_in, __read_only image2d_t veloci
     ///to get local weighting of essentially energy to correctly only inject energy with forward scattering
     ///and in the simple case they use a global weight
     ///neither of these are really acceptable, so just blatantly cheat and use velocity to estimate local energy
-    float et_term = fast_length(interpolated);
+    float et_term = calculate_energy(interpolated);
 
     float2 final_velocity = interpolated + pow(2.f, -5.f/6) * et_term * y_of;
 
@@ -399,7 +409,7 @@ void wavelet_upscale(__read_only image2d_t w_of_in, __read_only image2d_t veloci
 
     float2 new_y_of = get_y_of(back_in_time_pos, w_of_in, 1, 4, (float2){gw, gh});
 
-    float new_et_term = fast_length(final_velocity);
+    float new_et_term = calculate_energy(final_velocity);
 
     float2 advected_velocity = new_value + pow(2.f, -5.f/6) * new_et_term * new_y_of;
 

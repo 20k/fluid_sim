@@ -366,7 +366,17 @@ struct fluid_manager
 
         velocity_boundary(program, cqueue);
 
-        advect_quantity_with(dye, which_dye, program, cqueue, timestep_s, dye_dim, get_velocity_buf(0));
+        cl::buffer* velocity_to_upscale = get_velocity_buf(0);
+
+        cl::args upscale_args;
+        upscale_args.push_back(w_of);
+        upscale_args.push_back(velocity_to_upscale);
+        upscale_args.push_back(upscaled_advected_velocity);
+        upscale_args.push_back(timestep_s);
+
+        cqueue.exec(program, "wavelet_upscale", upscale_args, wavelet_dim, {16, 16});
+
+        advect_quantity_with(dye, which_dye, program, cqueue, timestep_s, dye_dim, upscaled_advected_velocity);
 
 
         interop->acquire(cqueue);
