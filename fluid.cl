@@ -219,7 +219,7 @@ float2 angle_to_offset(float angle)
     float2 normal = {cos(angle), sin(angle)};
 
     ///round off any error
-    normal = round(normal * 10.f) / 10.f;
+    normal = round(normal * 100.f) / 100.f;
 
     float2 res = {0,0};
 
@@ -256,7 +256,11 @@ void fluid_boundary_tex(__read_only image2d_t field_in, __write_only image2d_t f
                     CLK_ADDRESS_CLAMP_TO_EDGE |
                     CLK_FILTER_LINEAR;
 
-    float2 vals = read_imagef(boundary_texture, sam, convert_float2(ipos) + 0.5f).xy;
+    sampler_t sam_near = CLK_NORMALIZED_COORDS_FALSE |
+                    CLK_ADDRESS_CLAMP_TO_EDGE |
+                    CLK_FILTER_NEAREST;
+
+    float2 vals = read_imagef(boundary_texture, sam_near, convert_float2(ipos) + 0.5f).xy;
 
     if(vals.x != 1)
         return;
@@ -292,7 +296,7 @@ void fluid_boundary_tex(__read_only image2d_t field_in, __write_only image2d_t f
 
         float2 offset = angle_to_offset(angle_frac);
 
-        float2 nval = read_imagef(boundary_texture, sam, pos + 0.5f + offset).xy;
+        float2 nval = read_imagef(boundary_texture, sam_near, pos + 0.5f + offset).xy;
 
         if(nval.x == 1)
         {
@@ -313,7 +317,7 @@ void fluid_boundary_tex(__read_only image2d_t field_in, __write_only image2d_t f
 
         float2 offset = angle_to_offset(angle_frac);
 
-        float2 nval = read_imagef(boundary_texture, sam, pos + 0.5f + offset).xy;
+        float2 nval = read_imagef(boundary_texture, sam_near, pos + 0.5f + offset).xy;
 
         if(nval.x == 1)
         {
