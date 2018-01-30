@@ -236,11 +236,9 @@ float2 angle_to_offset(float angle)
     return res;
 }
 
-///ok so what we really wanna do is
-///find all possible unoccupied normals
-///jump to that pixel
-///pretend we're that pixel
-///do normal thing
+///this method assumes that each fluid boundary pixel is connected to two others
+///and then creates boundaries on both side of the line
+///its not 1000% perfect but it works better than i expected
 __kernel
 void fluid_boundary_tex(__read_only image2d_t field_in, __write_only image2d_t field_out, float scale, __read_only image2d_t boundary_texture)
 {
@@ -276,12 +274,13 @@ void fluid_boundary_tex(__read_only image2d_t field_in, __write_only image2d_t f
 
     write_imagef(field_out, ipos, real_val);*/
 
-    ///ok. Wheel one way until we find a boundary, even if we are one
+    ///ok. Wheel one way until we find a boundary
     ///wheel the same way looking for another boundary
-    ///if we find another boundary, offset by one and then find normal and offset by normal
+    ///if we find another boundary, find normal and offset position by normal, then offset again and write pressure
+    ///we do this for both directions of normal so that a straight line is a boundary on both sides
     ///then update initial guess
     ///if we are in a block who cares
-    /*float tl = 0;
+    float tl = 0;
 
     float angles = 8;
 
@@ -295,12 +294,47 @@ void fluid_boundary_tex(__read_only image2d_t field_in, __write_only image2d_t f
 
         float2 nval = read_imagef(boundary_texture, sam, pos + 0.5f + offset).xy;
 
-        if(nval)
-    }*/
+        if(nval.x == 1)
+        {
+            range_start = i;
+        }
+    }
 
+    if(range_start < 0)
+        return;
 
-    ///there must be a good way to find a normal here!
-    ///just assume its a straight line or something?
+    float fnormalangle = 0;
+
+    for(int i=range_start + 1; i < range_start + angles; i++)
+    {
+        int id = i % (int)angles;
+
+        float angle_frac = 2 * M_PI * (float)id / angles;
+
+        float2 offset = angle_to_offset(angle_frac);
+
+        float2 nval = read_imagef(boundary_texture, sam, pos + 0.5f + offset).xy;
+
+        if(nval.x == 1)
+        {
+            fnormalangle = (angle_frac + 2 * M_PI * (float)range_start / angles) / 2.f;
+            break;
+        }
+    }
+
+    float2 fnormal = {cos(fnormalangle), sin(fnormalangle)};
+
+    int2 p1 = convert_int2(pos + fnormal);
+    int2 p2 = convert_int2(pos - fnormal);
+
+    float4 rv1 = read_imagef(field_in, sam, pos + fnormal * 2 + 0.5f);
+    float4 rv2 = read_imagef(field_in, sam, pos - fnormal * 2 + 0.5f);
+
+    rv1 = rv1 * scale;
+    rv2 = rv2 * scale;
+
+    write_imagef(field_out, p1, rv1);
+    write_imagef(field_out, p2, rv2);
 }
 
 __kernel
