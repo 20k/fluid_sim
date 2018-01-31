@@ -29,6 +29,28 @@ int main()
 
     cl::buffer_manager buffer_manage;
 
+    #if 0
+    sf::Clock clk2;
+
+    cl::kernel blank(program, "blank");
+
+    std::vector<int> zero{0};
+    cl::buffer* buf = buffer_manage.fetch<cl::buffer>(ctx, nullptr);
+    buf->alloc(cqueue, zero);
+
+    cl::args valargs;
+    valargs.push_back(buf);
+
+    for(int i=0; i < 22000; i++)
+    {
+        cqueue.exec(blank, valargs, {1024}, {256});
+    }
+
+    cqueue.block();
+
+    std::cout << "TIME " << clk2.getElapsedTime().asMicroseconds() / 1000. / 1000. << std::endl;
+    #endif
+
     /*cl::buffer* buf = buffer_manage.fetch<cl::buffer>(ctx, nullptr);
 
     std::vector<int> data;
@@ -71,7 +93,6 @@ int main()
 
     lighting_manager lighting_manage;
     lighting_manage.init(ctx, buffer_manage, program, cqueue, screen_dim);
-
 
     sf::Clock clk;
     sf::Keyboard key;

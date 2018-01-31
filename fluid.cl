@@ -418,14 +418,297 @@ void fluid_advect_particles(__read_only image2d_t velocity, __global struct flui
                     CLK_ADDRESS_CLAMP_TO_EDGE |
                     CLK_FILTER_LINEAR;
 
-    //pos += 0.5f;
+    pos += 0.5f;
 
     float rdx = 1.f / GRID_SCALE;
 
 
     float2 new_pos = pos + timestep * rdx * read_imagef(velocity, sam, pos / scale).xy;
 
-    particles[gid].pos = new_pos;// - 0.5f;
+    particles[gid].pos = new_pos - 0.5f;
+}
+
+struct physics_particle
+{
+    float2 pos;
+    float2 unused_velocity;
+};
+
+#if 0
+float2 get_free_neighbour_pos(float2 initial, float2 occupied, __read_only image2d_t physics_particles, __read_only image2d_t boundaries, int* found)
+{
+    sampler_t sam = CLK_NORMALIZED_COORDS_FALSE |
+                    CLK_ADDRESS_CLAMP_TO_EDGE |
+                    CLK_FILTER_NEAREST;
+
+    for(int y=-1; y<=1; y++)
+    {
+        for(int x=-1; x<=1; x++)
+        {
+            if(x == 0 && y == 0)
+                continue;
+
+            float2 to_initial_v = initial - occupied;
+            float2 current_v = (float2){x, y};
+
+            float angle = acos(dot(normalize(to_initial_v), normalize(current_v)));
+
+            if(fabs(angle) >= M_PI/2.f)
+                continue;
+
+            float2 rcd = round(occupied + (float2){x, y});
+
+            float4 res = read_imagef(physics_particles, sam, rcd + 0.5f);
+
+            if(res.x > 0)
+                continue;
+
+            float4 r2 = read_imagef(boundaries, sam, rcd + 0.5f);
+
+            if(r2.x == 1)
+                continue;
+
+            occupied = occupied + (float2){x, y};
+
+            *found = 1;
+
+            return occupied;
+        }
+    }
+
+    *found = 0;
+
+    return occupied;
+}
+#endif
+
+#if 0
+__kernel
+void falling_sand_physics(__read_only image2d_t velocity, __global struct physics_particle* particles, int particles_num, float timestep, float2 scale,
+                          __read_only image2d_t physics_particles_in, __write_only image2d_t physics_particles_out, __read_only image2d_t physics_boundaries)
+{
+    int gid = get_global_id(0);
+
+    if(gid >= particles_num)
+        return;
+
+    ///snapped to grid
+    float2 pos = particles[gid].pos;
+    float2 extra_vel = particles[gid].unused_velocity;
+
+    ///uncomment for compiler bugs!
+    ///i was really rather hoping the state of opencl would be better than this
+    ///when i came back to it
+    //particles[gid].unused_velocity = (float2)(0,0);
+
+    float2 gravity = {0, -0.098};
+
+    sampler_t sam = CLK_NORMALIZED_COORDS_FALSE |
+                    CLK_ADDRESS_CLAMP_TO_EDGE |
+                    CLK_FILTER_NEAREST;
+
+    float rdx = 1.f / GRID_SCALE;
+
+    float2 new_pos = extra_vel + pos + timestep * rdx * read_imagef(velocity, sam, (pos + 0.5f) / scale).xy + gravity;
+
+    float2 diff = new_pos - pos;
+
+    float max_diff = max(fabs(diff.x), fabs(diff.y));
+
+    //printf("%f %f %f %f md\n", new_pos.x, new_pos.y, pos.x, pos.y);
+
+    ///uncomment for compiler bugs with the above comment
+    //printf("%f %f\n", extra_vel.x, extra_vel.y);
+
+    ///ensure we're stepping at least one in any direction
+    if(max_diff < 1)
+    {
+        //printf("hello %f %f %f %f\n", diff.x, diff.y, extra_vel.x, extra_vel.y);
+
+        particles[gid].unused_velocity = diff;
+        write_imagef(physics_particles_out, convert_int2(pos), (float4)(gid+1,0,0,0));
+        return;
+    }
+
+    ///so eg if we want to move 0.5, 1.5, we get a remainder of
+    ///0.5, 0.5
+    ///subtract that, our diff to move is 0, 1
+    float2 extra = fmod(diff, 1.f);
+
+    //printf("%f %f\n", extra.x, extra.y);
+
+    diff -= extra;
+
+    int steps = max(fabs(diff.x), fabs(diff.y));
+
+    float2 to_step = diff / steps;
+
+    float2 last_valid = pos;
+
+    float2 to_test = pos;
+    to_test += to_step;
+
+    for(int i=0; i < steps; i++, to_test += to_step)
+    {
+        float4 bound = read_imagef(physics_boundaries, sam, to_test + 0.5f);
+
+        ///hit a boundary, should not accumulate velocity past it
+        if(bound.x == 1)
+        {
+            extra = (float2){0,0};
+            break;
+        }
+
+        float4 part = read_imagef(physics_particles_in, sam, to_test + 0.5f);
+
+        ///hit a particle, dont accumulate velocity
+        if(part.x > 0)
+        {
+            extra = (float2){0,0};
+
+            int found = 0;
+
+            //float2 nval = get_free_neighbour_pos(pos, to_test, physics_particles_in, physics_boundaries, &found);
+
+            if(found)
+            {
+                //last_valid = nval;
+            }
+
+            break;
+        }
+
+        last_valid = to_test;
+    }
+
+    particles[gid].unused_velocity = extra;
+
+    particles[gid].pos = last_valid;
+
+    write_imagef(physics_particles_out, convert_int2(last_valid), (float4)(gid+1,0,0,0));
+}
+#endif
+
+#if 1
+
+///so first: need to check if any particles are between us and destination
+///stop if we hit one
+///ok having numerical issues
+///what would be easier is giving them an integer coordinate
+///accumulate velocities
+///and then try moving them when accumulated > 1 in any direction
+__kernel
+void falling_sand_physics(__read_only image2d_t velocity, __global struct physics_particle* particles, int particles_num, float timestep, float2 scale,
+                          __read_only image2d_t physics_particles_in, __write_only image2d_t physics_particles_out, __read_only image2d_t physics_boundaries)
+{
+    int gid = get_global_id(0);
+
+    if(gid >= particles_num)
+        return;
+
+    float2 pos = particles[gid].pos;
+
+    sampler_t sam = CLK_NORMALIZED_COORDS_FALSE |
+                    CLK_ADDRESS_CLAMP_TO_EDGE |
+                    CLK_FILTER_NEAREST;
+
+    float rdx = 1.f / GRID_SCALE;
+
+    //float2 gravity = {0, -0.098};
+
+    float2 new_pos = pos + timestep * rdx * read_imagef(velocity, sam, (pos + 0.5f) / scale).xy;// + gravity;
+
+    //new_pos -= 0.5f;
+    //pos -= 0.5f;
+
+    float2 diff = new_pos - pos;
+
+    float max_dist = ceil(max(fabs(diff.x), fabs(diff.y)));
+
+    if(max_dist == 0)
+        return;
+
+    float2 step = diff / max_dist;
+
+    //printf("mystep %f %f\n", step.x, step.y);
+    //printf("diff %f %f\n", diff.x, diff.y);
+
+    //float2 cpos = convert_float2(start);
+    float2 cpos = pos;
+
+    float2 last_valid = cpos;
+    new_pos = last_valid;
+
+    float4 first_bound = read_imagef(physics_boundaries, sam, round(cpos + 0.5f));
+
+    if(first_bound.x)
+    {
+        write_imagef(physics_particles_out, convert_int2(round(pos + 0.5f)), (float4)(1,0,0,0));
+        return;
+    }
+
+    cpos += step;
+
+    for(int i=0; i < max_dist; i++, cpos += step)
+    {
+        float4 bound = read_imagef(physics_boundaries, sam, round(cpos + 0.5f));
+
+        if(bound.x == 1)
+            break;
+
+        ///no self collision
+        if(all(convert_int2(cpos) == convert_int2(pos)))
+        {
+            last_valid = cpos;
+            new_pos = last_valid;
+            continue;
+        }
+
+        float4 val = read_imagef(physics_particles_in, sam, round(cpos + 0.5f));
+
+        ///ok. What we really need to do is look in the direction of motion
+        ///and say, can we move to a neighbouring pixel?
+        if(val.x == 1)
+        {
+            int found = 0;
+
+            //float2 nval = get_free_neighbour_pos(cpos, physics_particles_in, physics_boundaries, &found);
+
+            if(found)
+            {
+                //new_pos = nval;
+            }
+
+            break;
+        }
+
+        last_valid = cpos;
+        new_pos = last_valid;
+    }
+
+    particles[gid].pos = new_pos;
+
+    write_imagef(physics_particles_out, convert_int2(round(new_pos + 0.5f)), (float4)(1,0,0,0));
+}
+#endif
+
+__kernel
+void falling_sand_render(__global struct physics_particle* particles, int particles_num, __write_only image2d_t screen)
+{
+    int gid = get_global_id(0);
+
+    if(gid >= particles_num)
+        return;
+
+    int gw = get_image_width(screen);
+    int gh = get_image_height(screen);
+
+    float2 pos = particles[gid].pos;
+
+    if(pos.x >= gw-1 || pos.x < 0 || pos.y >= gh-1 || pos.y < 0)
+        return;
+
+    write_imagef(screen, convert_int2(pos), (float4){0.3f,0.3f,1,1});
 }
 
 __kernel
@@ -653,4 +936,10 @@ void lighting_raytrace_point(float2 point, float radius, int num_tracers, __read
             write_imagef(screen, convert_int2(cur), (float4)(amount_reflected*distance_curve*extra_bright, 0, 0, 1));
         }
     }
+}
+
+__kernel
+void blank(__global int* value)
+{
+    *value = *value + 1;
 }

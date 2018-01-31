@@ -6,6 +6,12 @@ struct fluid_particle
     vec2f pos = {0,0};
 };
 
+struct physics_particle
+{
+    vec2f pos = {0,0};
+    vec2f unused_velocity = {0,0};
+};
+
 struct fluid_manager
 {
     int which_vel = 0;
@@ -22,6 +28,12 @@ struct fluid_manager
 
     cl::buffer* fluid_particles;
     std::vector<fluid_particle> cpu_particles;
+
+    ///falling sand
+    cl::buffer* physics_particles;
+    cl::buffer* physics_tex[2];
+    int which_physics_tex = 0;
+    std::vector<physics_particle> cpu_physics_particles;
 
     cl::buffer* noise;
     cl::buffer* w_of;
@@ -66,6 +78,9 @@ struct fluid_manager
         dye[1] = buffers.fetch<cl::buffer>(ctx, nullptr);
 
         fluid_particles = buffers.fetch<cl::buffer>(ctx, nullptr);
+        physics_particles = buffers.fetch<cl::buffer>(ctx, nullptr);
+        physics_tex[0] = buffers.fetch<cl::buffer>(ctx, nullptr);
+        physics_tex[1] = buffers.fetch<cl::buffer>(ctx, nullptr);
 
         noise = buffers.fetch<cl::buffer>(ctx, nullptr);
         w_of = buffers.fetch<cl::buffer>(ctx, nullptr);
@@ -125,14 +140,24 @@ struct fluid_manager
         w_of->alloc_img(cqueue, noise_data, velocity_dim, CL_RG, CL_FLOAT);
         upscaled_advected_velocity->alloc_img(cqueue, noise_data, wavelet_dim, CL_RG, CL_FLOAT);
 
-        for(int i=0; i < 10000; i++)
+        for(int i=0; i < 100000; i++)
         {
             vec2f pos = randv<2, float>(0, 600);
+            vec2f pos2 = randv<2, float>(600, 1000);
+            vec2f uvel = {0,0};
 
             cpu_particles.push_back({pos});
+
+            cpu_physics_particles.push_back({pos2, uvel});
         }
 
         fluid_particles->alloc(cqueue, cpu_particles);
+        physics_particles->alloc(cqueue, cpu_physics_particles);
+
+
+        ///need a double buffer class
+        physics_tex[0]->alloc_img(cqueue, zero_data, velocity_dim, CL_R, CL_FLOAT);
+        physics_tex[1]->alloc_img(cqueue, zero_data, velocity_dim, CL_R, CL_FLOAT);
 
 
         cl::args w_of_args;
@@ -279,6 +304,43 @@ struct fluid_manager
         render_args.push_back(interop);
 
         cqueue.exec(program, "fluid_render_particles", render_args, {num_particles}, {128});
+    }
+
+    void handle_falling_sand(cl::cl_gl_interop_texture* interop, cl::program& program, cl::command_queue& cqueue, float timestep_s)
+    {
+        interop->acquire(cqueue);
+
+        cl::buffer* v1 = get_velocity_buf(0);
+
+        int num_particles = cpu_physics_particles.size();
+
+        vec2f scale = velocity_to_display_ratio;
+
+        cl::buffer* p1 = physics_tex[which_physics_tex];
+        cl::buffer* p2 = physics_tex[(which_physics_tex + 1) % 2];
+
+        cl::args physics_args;
+        physics_args.push_back(v1);
+        physics_args.push_back(physics_particles);
+        physics_args.push_back(num_particles);
+        physics_args.push_back(timestep_s);
+        physics_args.push_back(scale);
+        physics_args.push_back(p1);
+        physics_args.push_back(p2);
+        physics_args.push_back(boundaries);
+
+        cqueue.exec(program, "falling_sand_physics", physics_args, {num_particles}, {128});
+
+        cl::args render_args;
+        render_args.push_back(physics_particles);
+        render_args.push_back(num_particles);
+        render_args.push_back(interop);
+
+        cqueue.exec(program, "falling_sand_render", render_args, {num_particles}, {128});
+
+        which_physics_tex = (which_physics_tex + 1) % 2;
+
+        p1->clear_to_zero(cqueue);
     }
 
     ///future improvement: When decoupling dye/visuals from velocity
@@ -435,6 +497,7 @@ struct fluid_manager
         cqueue.exec(program, "fluid_render", debug, dye_dim, {16, 16});
 
         handle_particles(interop, program, cqueue, timestep_s);
+        handle_falling_sand(interop, program, cqueue, timestep_s);
 
     }
 };
