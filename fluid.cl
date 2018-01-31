@@ -434,7 +434,7 @@ struct physics_particle
     float2 unused_velocity;
 };
 
-#if 0
+#if 1
 float2 get_free_neighbour_pos(float2 initial, float2 occupied, __read_only image2d_t physics_particles, __read_only image2d_t boundaries, int* found)
 {
     sampler_t sam = CLK_NORMALIZED_COORDS_FALSE |
@@ -453,26 +453,26 @@ float2 get_free_neighbour_pos(float2 initial, float2 occupied, __read_only image
 
             float angle = acos(dot(normalize(to_initial_v), normalize(current_v)));
 
-            if(fabs(angle) >= M_PI/2.f)
-                continue;
+            //if(fabs(angle) >= M_PI/2.f)
+            //    continue;
 
             float2 rcd = round(occupied + (float2){x, y});
 
-            float4 res = read_imagef(physics_particles, sam, rcd + 0.5f);
+            float4 res = read_imagef(physics_particles, sam, round(rcd + 0.5f));
 
             if(res.x > 0)
                 continue;
 
-            float4 r2 = read_imagef(boundaries, sam, rcd + 0.5f);
+            float4 r2 = read_imagef(boundaries, sam, round(rcd + 0.5f));
 
             if(r2.x == 1)
                 continue;
 
-            occupied = occupied + (float2){x, y};
+            float2 ret = occupied + (float2){x, y};
 
             *found = 1;
 
-            return occupied;
+            return ret;
         }
     }
 
@@ -597,6 +597,10 @@ void falling_sand_physics(__read_only image2d_t velocity, __global struct physic
 ///what would be easier is giving them an integer coordinate
 ///accumulate velocities
 ///and then try moving them when accumulated > 1 in any direction
+
+///implement a simple decision rule
+///if we read the pixel texture and find a gid + 1 there that's > than our own
+///we move our pixel somewhere else
 __kernel
 void falling_sand_physics(__read_only image2d_t velocity, __global struct physics_particle* particles, int particles_num, float timestep, float2 scale,
                           __read_only image2d_t physics_particles_in, __write_only image2d_t physics_particles_out, __read_only image2d_t physics_boundaries)
@@ -614,36 +618,44 @@ void falling_sand_physics(__read_only image2d_t velocity, __global struct physic
 
     float rdx = 1.f / GRID_SCALE;
 
-    //float2 gravity = {0, -0.098};
+    float2 gravity = {0, -0.098};
 
-    float2 new_pos = pos + timestep * rdx * read_imagef(velocity, sam, (pos + 0.5f) / scale).xy;// + gravity;
+    float2 new_pos = pos + timestep * rdx * read_imagef(velocity, sam, round(pos + 0.5f) / scale).xy + gravity;
 
-    //new_pos -= 0.5f;
-    //pos -= 0.5f;
+    float4 current_physp = read_imagef(physics_particles_in, sam, round(pos + 0.5f));
+
+    int gcid = current_physp.x - 1;
+
+    if(gcid > gid)
+    {
+        ///uuh.. resolve upwards?
+        ///maybe should resolve away from velocity vector
+        new_pos = pos + (float2){0, 1};
+    }
+
 
     float2 diff = new_pos - pos;
 
     float max_dist = ceil(max(fabs(diff.x), fabs(diff.y)));
 
+
     if(max_dist == 0)
+    {
+        write_imagef(physics_particles_out, convert_int2(round(pos + 0.5f)), (float4)(gid + 1,0,0,0));
         return;
+    }
 
     float2 step = diff / max_dist;
 
-    //printf("mystep %f %f\n", step.x, step.y);
-    //printf("diff %f %f\n", diff.x, diff.y);
-
-    //float2 cpos = convert_float2(start);
     float2 cpos = pos;
 
-    float2 last_valid = cpos;
-    new_pos = last_valid;
+    new_pos = cpos;
 
     float4 first_bound = read_imagef(physics_boundaries, sam, round(cpos + 0.5f));
 
     if(first_bound.x)
     {
-        write_imagef(physics_particles_out, convert_int2(round(pos + 0.5f)), (float4)(1,0,0,0));
+        write_imagef(physics_particles_out, convert_int2(round(pos + 0.5f)), (float4)(gid + 1,0,0,0));
         return;
     }
 
@@ -657,10 +669,9 @@ void falling_sand_physics(__read_only image2d_t velocity, __global struct physic
             break;
 
         ///no self collision
-        if(all(convert_int2(cpos) == convert_int2(pos)))
+        if(all(convert_int2(round(cpos + 0.5f)) == convert_int2(round(pos + 0.5))))
         {
-            last_valid = cpos;
-            new_pos = last_valid;
+            new_pos = cpos;
             continue;
         }
 
@@ -668,27 +679,27 @@ void falling_sand_physics(__read_only image2d_t velocity, __global struct physic
 
         ///ok. What we really need to do is look in the direction of motion
         ///and say, can we move to a neighbouring pixel?
-        if(val.x == 1)
+        if(val.x > 0)
         {
             int found = 0;
 
-            //float2 nval = get_free_neighbour_pos(cpos, physics_particles_in, physics_boundaries, &found);
+            ///the problem here is that we're piling multiple pixels onto the same spot
+            float2 nval = get_free_neighbour_pos(pos, cpos, physics_particles_in, physics_boundaries, &found);
 
             if(found)
             {
-                //new_pos = nval;
+                new_pos = nval;
             }
 
             break;
         }
 
-        last_valid = cpos;
-        new_pos = last_valid;
+        new_pos = cpos;
     }
 
     particles[gid].pos = new_pos;
 
-    write_imagef(physics_particles_out, convert_int2(round(new_pos + 0.5f)), (float4)(1,0,0,0));
+    write_imagef(physics_particles_out, convert_int2(round(new_pos + 0.5f)), (float4)(gid + 1,0,0,0));
 }
 #endif
 
