@@ -661,6 +661,8 @@ void falling_sand_physics(__read_only image2d_t velocity, __global struct physic
 
     cpos += step;
 
+    float2 desire_dir = (float2)(0,0);
+
     for(int i=0; i < max_dist; i++, cpos += step)
     {
         float4 bound = read_imagef(physics_boundaries, sam, round(cpos + 0.5f));
@@ -686,9 +688,11 @@ void falling_sand_physics(__read_only image2d_t velocity, __global struct physic
             ///the problem here is that we're piling multiple pixels onto the same spot
             float2 nval = get_free_neighbour_pos(pos, cpos, physics_particles_in, physics_boundaries, &found);
 
+            desire_dir = nval - cpos;
+
             if(found)
             {
-                new_pos = nval;
+                //new_pos = nval;
             }
 
             break;
@@ -699,9 +703,22 @@ void falling_sand_physics(__read_only image2d_t velocity, __global struct physic
 
     particles[gid].pos = new_pos;
 
-    write_imagef(physics_particles_out, convert_int2(round(new_pos + 0.5f)), (float4)(gid + 1,0,0,0));
+    write_imagef(physics_particles_out, convert_int2(round(new_pos + 0.5f)), (float4)(gid + 1,desire_dir.x, desire_dir.y,0));
 }
 #endif
+
+///current plan:
+///take empty pixel
+///for every pixel around me, check desire dirs (and gid)
+///if desire_dirs > 0 and we're a suitable pixel (angle < pi / 2 etc), move that particle into me
+///should be stable
+__kernel
+void falling_sand_disempact(__global struct physics_particle* particles, int particles_num,
+                            __read_only image2d_t physics_particles_in, __write_only image2d_t physics_particles_out,
+                            __read_only image2d_t physics_boundaries)
+{
+
+}
 
 __kernel
 void falling_sand_render(__global struct physics_particle* particles, int particles_num, __write_only image2d_t screen)
