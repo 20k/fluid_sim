@@ -144,6 +144,9 @@ int main()
 
         interop->gl_blit_me(0, cqueue);
 
+        if(key.isKeyPressed(sf::Keyboard::Escape))
+            system("Pause");
+
 
         win.display();
         win.clear();

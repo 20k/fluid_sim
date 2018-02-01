@@ -10,6 +10,7 @@ struct physics_particle
 {
     vec2f pos = {0,0};
     vec2f unused_velocity = {0,0};
+    vec4f col = {0, 0, 1, 1};
 };
 
 struct fluid_manager
@@ -306,6 +307,9 @@ struct fluid_manager
         cqueue.exec(program, "fluid_render_particles", render_args, {num_particles}, {128});
     }
 
+    uint32_t fsand_id = 0;
+    uint32_t phys_counter = 0;
+
     void handle_falling_sand(cl::cl_gl_interop_texture* interop, cl::program& program, cl::command_queue& cqueue, float timestep_s)
     {
         interop->acquire(cqueue);
@@ -328,10 +332,16 @@ struct fluid_manager
         physics_args.push_back(p1);
         physics_args.push_back(p2);
         physics_args.push_back(boundaries);
+        physics_args.push_back(phys_counter);
 
         cqueue.exec(program, "falling_sand_physics", physics_args, {num_particles}, {128});
 
         p1->clear_to_zero(cqueue);
+
+        vec2i offset = {0,0};
+
+        if((fsand_id % 2) == 0)
+            offset = {2, 2};
 
         cl::args disimpact_args;
         disimpact_args.push_back(physics_particles);
@@ -339,8 +349,11 @@ struct fluid_manager
         disimpact_args.push_back(p2); ///fupped
         disimpact_args.push_back(p1);
         disimpact_args.push_back(boundaries);
+        disimpact_args.push_back(offset);
 
-        cqueue.exec(program, "falling_sand_disimpact", disimpact_args, velocity_dim, (vec2i){16, 16});
+        vec2f upper = ceil((vec2f){velocity_dim.x(), velocity_dim.y()} / (vec2f){4, 4});
+
+        cqueue.exec(program, "falling_sand_disimpact", disimpact_args, (vec2i){upper.x(), upper.y()}, (vec2i){16, 16});
 
         cl::args render_args;
         render_args.push_back(physics_particles);
@@ -352,6 +365,9 @@ struct fluid_manager
         //which_physics_tex = (which_physics_tex + 1) % 2;
 
         p2->clear_to_zero(cqueue);
+
+        fsand_id++;
+        phys_counter++;
     }
 
     ///future improvement: When decoupling dye/visuals from velocity

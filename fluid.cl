@@ -432,10 +432,51 @@ struct physics_particle
 {
     float2 pos;
     float2 unused_velocity;
+    float4 col;
 };
 
+///so. The problem with this function
+///is that if we free a hole, next frame we may very well fill it again aimlessly
+///aka this is very unhelpful
+///what we need is a systematic bias per area i think
+float2 any_free_neighbour_pos(float2 occupied, __read_only image2d_t physics_particles, __read_only image2d_t boundaries, int* found)
+{
+    sampler_t sam = CLK_NORMALIZED_COORDS_FALSE |
+                    CLK_ADDRESS_CLAMP_TO_EDGE |
+                    CLK_FILTER_NEAREST;
+
+    for(int y=-1; y<=-1; y++)
+    {
+        for(int x=-1; x<=-1; x++)
+        {
+            if(x == 0 && y == 0)
+                continue;
+
+            float2 rcd = occupied + (float2){x, y};
+
+            float4 res = read_imagef(physics_particles, sam, rcd);
+
+            if(res.x > 0)
+                continue;
+
+            float4 r2 = read_imagef(boundaries, sam, rcd);
+
+            if(r2.x > 0)
+                continue;
+
+            *found = 1;
+
+            return rcd;
+        }
+    }
+
+    *found = 0;
+
+    return occupied;
+}
+
 #if 1
-float2 get_free_neighbour_pos(float2 initial, float2 occupied, __read_only image2d_t physics_particles, __read_only image2d_t boundaries, int* found)
+float2 get_free_neighbour_pos(float2 move_vector, float2 initial, float2 occupied, __read_only image2d_t physics_particles, __read_only image2d_t boundaries, int* found)
 {
     sampler_t sam = CLK_NORMALIZED_COORDS_FALSE |
                     CLK_ADDRESS_CLAMP_TO_EDGE |
@@ -456,19 +497,27 @@ float2 get_free_neighbour_pos(float2 initial, float2 occupied, __read_only image
             //if(fabs(angle) >= M_PI/2.f)
             //    continue;
 
-            float2 rcd = round(occupied + (float2){x, y});
+            float2 nmove = normalize(move_vector);
+            float2 ncurrent = normalize(current_v);
 
-            float4 res = read_imagef(physics_particles, sam, round(rcd + 0.5f));
+            float nangle = acos(dot(nmove, ncurrent));
+
+            if(fabs(nangle) <= M_PI/2.f)
+                continue;
+
+            float2 rcd = occupied + (float2){x, y};
+
+            float4 res = read_imagef(physics_particles, sam, rcd + 0.5f);
 
             if(res.x > 0)
                 continue;
 
-            float4 r2 = read_imagef(boundaries, sam, round(rcd + 0.5f));
+            float4 r2 = read_imagef(boundaries, sam, rcd + 0.5f);
 
-            if(r2.x == 1)
+            if(r2.x > 0)
                 continue;
 
-            float2 ret = occupied + (float2){x, y};
+            float2 ret = rcd;
 
             *found = 1;
 
@@ -601,9 +650,13 @@ void falling_sand_physics(__read_only image2d_t velocity, __global struct physic
 ///implement a simple decision rule
 ///if we read the pixel texture and find a gid + 1 there that's > than our own
 ///we move our pixel somewhere else
+
+///something is preventing particles from falling downwards in clumped conditions
+///is it because above particles are falling down first and breaking stuff?
 __kernel
 void falling_sand_physics(__read_only image2d_t velocity, __global struct physics_particle* particles, int particles_num, float timestep, float2 scale,
-                          __read_only image2d_t physics_particles_in, __write_only image2d_t physics_particles_out, __read_only image2d_t physics_boundaries)
+                          __read_only image2d_t physics_particles_in, __write_only image2d_t physics_particles_out, __read_only image2d_t physics_boundaries,
+                          unsigned int counter)
 {
     int gid = get_global_id(0);
 
@@ -611,6 +664,11 @@ void falling_sand_physics(__read_only image2d_t velocity, __global struct physic
         return;
 
     float2 pos = particles[gid].pos;
+    float4 ecol = particles[gid].col;
+
+    ecol = (float4)(0.3, 0.3, 1, 1);
+
+    //pos += 0.5f;
 
     sampler_t sam = CLK_NORMALIZED_COORDS_FALSE |
                     CLK_ADDRESS_CLAMP_TO_EDGE |
@@ -620,17 +678,29 @@ void falling_sand_physics(__read_only image2d_t velocity, __global struct physic
 
     float2 gravity = {0, -0.098};
 
-    float2 new_pos = pos + timestep * rdx * read_imagef(velocity, sam, round(pos + 0.5f) / scale).xy + gravity;
+    float2 new_pos = pos + timestep * rdx * read_imagef(velocity, sam, pos / scale).xy + gravity;
 
-    float4 current_physp = read_imagef(physics_particles_in, sam, round(pos + 0.5f));
+    float4 current_physp = read_imagef(physics_particles_in, sam, pos);
 
     int gcid = current_physp.x - 1;
+
+    bool blocked = true;
 
     if(gcid > gid)
     {
         ///uuh.. resolve upwards?
         ///maybe should resolve away from velocity vector
         new_pos = pos + (float2){0, 1};
+        blocked = false;
+
+        int found = 0;
+
+        float2 nval = any_free_neighbour_pos(pos, physics_particles_in, physics_boundaries, &found);
+
+        if(found && ((counter % 128) == (gid % 128)))
+        {
+            //new_pos = nval;
+        }
     }
 
 
@@ -641,7 +711,7 @@ void falling_sand_physics(__read_only image2d_t velocity, __global struct physic
 
     if(max_dist == 0)
     {
-        write_imagef(physics_particles_out, convert_int2(round(pos + 0.5f)), (float4)(gid + 1,0,0,0));
+        write_imagef(physics_particles_out, convert_int2(pos), (float4)(gid + 1,0,0,0));
         return;
     }
 
@@ -651,51 +721,55 @@ void falling_sand_physics(__read_only image2d_t velocity, __global struct physic
 
     new_pos = cpos;
 
-    float4 first_bound = read_imagef(physics_boundaries, sam, round(cpos + 0.5f));
+    float4 first_bound = read_imagef(physics_boundaries, sam, cpos);
 
-    if(first_bound.x)
+    if(first_bound.x > 0)
     {
-        write_imagef(physics_particles_out, convert_int2(round(pos + 0.5f)), (float4)(gid + 1,0,0,0));
+        write_imagef(physics_particles_out, convert_int2(pos), (float4)(gid + 1,0,0,0));
         return;
     }
 
-    cpos += step;
+    //cpos += step;
 
     float2 desire_dir = (float2)(0,0);
 
-    for(int i=0; i < max_dist; i++, cpos += step)
+    for(int i=0; i < max_dist + 1; i++, cpos += step)
     {
-        float4 bound = read_imagef(physics_boundaries, sam, round(cpos + 0.5f));
+        float4 bound = read_imagef(physics_boundaries, sam, cpos);
 
         if(bound.x == 1)
             break;
 
         ///no self collision
-        if(all(convert_int2(round(cpos + 0.5f)) == convert_int2(round(pos + 0.5))))
+        /*if(all(convert_int2(round(cpos + 0.5f)) == convert_int2(round(pos + 0.5))))
         {
             new_pos = cpos;
             continue;
-        }
+        }*/
 
-        float4 val = read_imagef(physics_particles_in, sam, round(cpos + 0.5f));
+        float4 val = read_imagef(physics_particles_in, sam, cpos);
+
+        int found_gid = val.x - 1;
 
         ///ok. What we really need to do is look in the direction of motion
         ///and say, can we move to a neighbouring pixel?
-        if(val.x > 0)
+        if(val.x > 0 && found_gid != gid && blocked)
         {
             int found = 0;
 
             ///the problem here is that we're piling multiple pixels onto the same spot
-            float2 nval = get_free_neighbour_pos(pos, cpos, physics_particles_in, physics_boundaries, &found);
+            float2 nval = get_free_neighbour_pos(step, pos, cpos, physics_particles_in, physics_boundaries, &found);
 
             desire_dir.x = 1;
             desire_dir.y = 1;
 
-            if(found)
+            if(found && ((counter % 1024) == (gid % 1024)))
             {
                 //desire_dir = nval - cpos;
                 //new_pos = nval;
             }
+
+            //ecol = (float4){0, 1, 0, 1};
 
             break;
         }
@@ -704,8 +778,9 @@ void falling_sand_physics(__read_only image2d_t velocity, __global struct physic
     }
 
     particles[gid].pos = new_pos;
+    particles[gid].col = ecol;
 
-    write_imagef(physics_particles_out, convert_int2(round(new_pos + 0.5f)), (float4)(gid + 1, desire_dir.x, desire_dir.y, 0));
+    write_imagef(physics_particles_out, convert_int2(new_pos), (float4)(gid + 1, desire_dir.x, desire_dir.y, 0));
 }
 #endif
 
@@ -714,6 +789,7 @@ void falling_sand_physics(__read_only image2d_t velocity, __global struct physic
 ///for every pixel around me, check desire dirs (and gid)
 ///if desire_dirs > 0 and we're a suitable pixel (angle < pi / 2 etc), move that particle into me
 ///should be stable
+#if 0
 __kernel
 void falling_sand_disimpact(__global struct physics_particle* particles, int particles_num,
                             __read_only image2d_t physics_particles_in, __write_only image2d_t physics_particles_out,
@@ -725,15 +801,15 @@ void falling_sand_disimpact(__global struct physics_particle* particles, int par
 
     float2 pos = (float2){get_global_id(0), get_global_id(1)};
 
-    float4 in = read_imagef(physics_particles_in, sam, round(pos + 0.5f));
+    float4 in = read_imagef(physics_particles_in, sam, pos);
 
     if(in.x != 0)
     {
-        write_imagef(physics_particles_out, convert_int2(round(pos + 0.5f)), in);
+        write_imagef(physics_particles_out, convert_int2(pos), in);
         return;
     }
 
-    float4 is_bound = read_imagef(physics_boundaries, sam, round(pos + 0.5f));
+    float4 is_bound = read_imagef(physics_boundaries, sam, pos);
 
     if(is_bound.x > 0)
         return;
@@ -751,19 +827,19 @@ void falling_sand_disimpact(__global struct physics_particle* particles, int par
             if(x == 0 && y == 0)
                 continue;
 
-            if(abs(x) == abs(y))
-                continue;
+            //if(abs(x) == abs(y))
+            //    continue;
 
             float2 new_pos = pos + (float2){x, y};
 
-            float4 val = read_imagef(physics_particles_in, sam, round(new_pos + 0.5f));
+            float4 val = read_imagef(physics_particles_in, sam, new_pos);
 
             int gid = val.x - 1;
 
             if(gid < 0)
                 continue;
 
-            if(read_imagef(physics_boundaries, sam, round(new_pos + 0.5f)).x > 0)
+            if(read_imagef(physics_boundaries, sam, new_pos).x > 0)
                 continue;
 
             float2 desire = val.yz;
@@ -775,13 +851,268 @@ void falling_sand_disimpact(__global struct physics_particle* particles, int par
 
             particles[gid].pos = new_pos;
 
-            write_imagef(physics_particles_out, convert_int2(round(new_pos + 0.5f)), (float4)(gid + 1, 0,0,0));
+            write_imagef(physics_particles_out, convert_int2(new_pos), (float4)(gid + 1, 0,0,0));
 
             return;
         }
     }
 
-    write_imagef(physics_particles_out, convert_int2(round(pos + 0.5f)), (float4)(in.x, 0,0,0));
+    write_imagef(physics_particles_out, convert_int2(pos), (float4)(in.x, 0,0,0));
+}
+#endif // 0
+
+///new strategy
+///single threading is proundly much easier to deal with
+///so, each thread will have an 8x8 block that it is responsible for
+///contract: Must set physics particles out
+__kernel
+void falling_sand_disimpact(__global struct physics_particle* particles, int particles_num,
+                            __read_only image2d_t physics_particles_in, __write_only image2d_t physics_particles_out,
+                            __read_only image2d_t physics_boundaries, int2 offset)
+{
+    sampler_t sam = CLK_NORMALIZED_COORDS_FALSE |
+                    CLK_ADDRESS_CLAMP_TO_EDGE |
+                    CLK_FILTER_NEAREST;
+
+    int2 pos = (int2){get_global_id(0), get_global_id(1)};
+
+    int2 global_bounds = (int2){get_image_width(physics_particles_in), get_image_height(physics_particles_out)};
+
+    int2 block_size = (int2){4, 4};
+
+    pos = pos * block_size + offset;
+
+    bool broke = false;
+
+    for(int y=0; y < block_size.y; y++)
+    {
+        for(int x=0; x < block_size.x; x++)
+        {
+            int2 global_pos = pos + (int2){x, y};
+
+            if(read_imagef(physics_boundaries, sam, global_pos).x > 0)
+                continue;
+
+            float4 vals = read_imagef(physics_particles_in, sam, global_pos);
+
+            int gid = vals.x - 1;
+
+            if(gid < 0)
+                continue;
+
+            if(vals.y == 0 && vals.z == 0)
+                continue;
+
+
+            int found = 0;
+
+            float2 nval = any_free_neighbour_pos(particles[gid].pos, physics_particles_in, physics_boundaries, &found);
+
+            if(found)
+            {
+                particles[gid].pos = nval;
+
+                particles[gid].col = (float4)(0, 1, 0, 1);
+
+                broke = true;
+
+                break;
+            }
+        }
+
+        if(broke)
+            break;
+    }
+
+    barrier(CLK_GLOBAL_MEM_FENCE);
+
+    for(int y=0; y < block_size.y; y++)
+    {
+        for(int x=0; x < block_size.x; x++)
+        {
+            int2 lid = pos + (int2){x, y};
+
+            int gid = read_imagef(physics_particles_in, sam, lid).x - 1;
+
+            if(gid < 0)
+                continue;
+
+            float2 rpos = particles[gid].pos;
+
+            write_imagef(physics_particles_out, convert_int2(rpos), (float4){gid + 1, 0,0,0});
+        }
+    }
+
+    #if 0
+    int local_pixels[4][4];
+    int marked[4][4] = {{0}};
+
+    for(int y=pos.y; y < pos.y + block_size.y; y++)
+    {
+        for(int x=pos.x; x < pos.x + block_size.x; x++)
+        {
+            int2 current_pixel = (int2){x, y};
+
+            float4 ids = read_imagef(physics_particles_in, sam, current_pixel);
+
+            local_pixels[y - pos.y][x - pos.x] = ids.x - 1;
+        }
+    }
+
+    for(int y=pos.y; y < pos.y + block_size.y; y++)
+    {
+        for(int x=pos.x; x < pos.x + block_size.x; x++)
+        {
+            int2 current_pixel = (int2){x, y};
+
+            if(any(current_pixel < 0) || any(current_pixel >= global_bounds))
+                continue;
+
+            if(marked[y - pos.y][x - pos.x])
+                continue;
+
+            float4 bound = read_imagef(physics_boundaries, sam, current_pixel).x;
+
+            if(bound.x)
+                continue;
+
+            ///so take current particle
+            ///if it wants to move, move it somewhere
+            ///carry on
+
+            float4 ids = read_imagef(physics_particles_in, sam, current_pixel);
+
+            int found_id = local_pixels[y - pos.y][x - pos.x];
+
+            if(found_id < 0)
+                continue;
+
+            ///wants to move
+            if(ids.y == 0 && ids.z == 0)
+                continue;
+
+            ///just move it somewhere else for the moment
+
+            bool term = false;
+
+            //for(int oy=-1; oy <= 1; oy++)
+
+            int oy = -1;
+            {
+                for(int ox=-1; ox <= 1; ox++)
+                {
+                    int2 lpix = (int2){ox + x - pos.x, oy + y - pos.y};
+                    int2 gpix = (int2){ox + x, oy + y};
+
+                    if(read_imagef(physics_boundaries, sam, gpix).x > 0)
+                        continue;
+
+                    if(ox == 0 && oy == 0)
+                        continue;
+
+                    if(any(lpix < 0) || any(lpix >= block_size))
+                        continue;
+
+                    int local_id = local_pixels[lpix.y][lpix.x];
+
+                    if(local_id < 0)
+                    {
+                        //local_pixels[lpix.y][lpix.x] = local_pixels[y - pos.y][x - pos.x];
+                        //local_pixels[y - pos.y][x - pos.x] = -1;
+                        marked[y - pos.y][x - pos.x] = 1;
+                        term = true;
+                        break;
+                    }
+                }
+
+                //if(term)
+                //    break;
+            }
+        }
+    }
+
+    for(int y=pos.y; y < pos.y + block_size.y; y++)
+    {
+        for(int x=pos.x; x < pos.x + block_size.x; x++)
+        {
+            int2 current_pixel = (int2){x, y};
+            int2 local_pixel = (int2){x - pos.x, y - pos.y};
+
+            int l_id = local_pixels[local_pixel.y][local_pixel.x];
+
+            if(l_id >= 0 && marked[local_pixel.y][local_pixel.x])
+            {
+                //particles[l_id].pos = (float2){x, y} + 0.5f;
+                //particles[l_id].col = (float4)(1, 1, 1, 1);
+            }
+
+            //particles[l_id].col.x = get_global_id(0) / 100.f;
+            //particles[l_id].col.y = get_global_id(1) / 100.f;
+
+            write_imagef(physics_particles_out, current_pixel, (float4)(l_id + 1, 0, 0, 0));
+        }
+    }
+    #endif
+
+    #if 0
+    float4 in = read_imagef(physics_particles_in, sam, pos);
+
+    if(in.x != 0)
+    {
+        write_imagef(physics_particles_out, convert_int2(pos), in);
+        return;
+    }
+
+    float4 is_bound = read_imagef(physics_boundaries, sam, pos);
+
+    if(is_bound.x > 0)
+        return;
+
+    ///ok. We're a hole
+    ///check around pixel neighbourhood
+    ///if we find a pixel with a desire path, move them into us
+    ///lots of other pixels will try to grab it
+    ///so: we let them all do it, and whoever gets there last wins
+
+    for(int y=-1; y <= 1; y++)
+    {
+        for(int x=-1; x <= 1; x++)
+        {
+            if(x == 0 && y == 0)
+                continue;
+
+            //if(abs(x) == abs(y))
+            //    continue;
+
+            float2 new_pos = pos + (float2){x, y};
+
+            float4 val = read_imagef(physics_particles_in, sam, new_pos);
+
+            int gid = val.x - 1;
+
+            if(gid < 0)
+                continue;
+
+            if(read_imagef(physics_boundaries, sam, new_pos).x > 0)
+                continue;
+
+            float2 desire = val.yz;
+
+            if(desire.x == 0 && desire.y == 0)
+                continue;
+
+            //printf("hello\n");
+
+            particles[gid].pos = new_pos;
+
+            write_imagef(physics_particles_out, convert_int2(new_pos), (float4)(gid + 1, 0,0,0));
+
+            return;
+        }
+    }
+
+    write_imagef(physics_particles_out, convert_int2(pos), (float4)(in.x, 0,0,0));
+    #endif
 }
 
 __kernel
@@ -800,7 +1131,22 @@ void falling_sand_render(__global struct physics_particle* particles, int partic
     if(pos.x >= gw-1 || pos.x < 0 || pos.y >= gh-1 || pos.y < 0)
         return;
 
-    write_imagef(screen, convert_int2(pos), (float4){0.3f,0.3f,1,1});
+    float4 col = particles[gid].col;
+
+    write_imagef(screen, convert_int2(pos), (float4){col.xyz,1});
+
+    /*for(int y=-1; y <= 1; y++)
+    {
+        for(int x = -1; x <= 1; x++)
+        {
+            if(abs(x) == abs(y) && abs(x) == 1)
+                continue;
+
+            float2 new_pos = pos + (float2){x, y};
+
+            write_imagef(screen, convert_int2(new_pos), (float4)(1,1,1,1));
+        }
+    }*/
 }
 
 __kernel
