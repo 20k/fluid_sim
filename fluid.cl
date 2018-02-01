@@ -449,7 +449,14 @@ float2 any_free_neighbour_pos(float2 occupied, __read_only image2d_t physics_par
 
     int mult = 1;
 
-    int iocc = convert_int2(round(occupied + 0.5f)).x;
+    int2 iv = convert_int2(round(occupied + 0.5f));
+
+    if((iv.y) % 2 == 0)
+    {
+        iv.x++;
+    }
+
+    int iocc = iv.x;
 
     if((iocc % 2) == 0)
     {
