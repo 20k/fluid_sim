@@ -126,7 +126,22 @@ int main()
 
         if(mouse.isButtonPressed(sf::Mouse::Right))
         {
-            fluid_manage.write_boundary(program, cqueue, cur_mouse, 0.f);
+            vec2f mdiff = (cur_mouse - last_mouse);
+
+            float max_diff = ceil(mdiff.largest_elem());
+
+            if(max_diff == 0)
+                fluid_manage.write_boundary(program, cqueue, cur_mouse, 0.f);
+            else
+            {
+                vec2f step = mdiff / max_diff;
+                vec2f start = last_mouse;
+
+                for(int i=0; i < max_diff + 1; i++, start += step)
+                {
+                    fluid_manage.write_boundary(program, cqueue, start, 0.f);
+                }
+            }
         }
 
         while(win.pollEvent(event))

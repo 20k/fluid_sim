@@ -591,6 +591,10 @@ float2 get_free_neighbour_pos(float2 move_vector, float2 initial, float2 occupie
 
 ///something is preventing particles from falling downwards in clumped conditions
 ///is it because above particles are falling down first and breaking stuff?
+
+///ok, all fin
+///next up, simulate fluid flow resistance by reducing impact of fluid velocity on particles depending on how many
+///others are around the current particle
 __kernel
 void falling_sand_physics(__read_only image2d_t velocity, __global struct physics_particle* particles, int particles_num, float timestep, float2 scale,
                           __read_only image2d_t physics_particles_in, __write_only image2d_t physics_particles_out, __read_only image2d_t physics_boundaries,
@@ -628,15 +632,6 @@ void falling_sand_physics(__read_only image2d_t velocity, __global struct physic
         ///maybe should resolve away from velocity vector
         new_pos = pos + (float2){0, 1};
         blocked = false;
-
-        int found = 0;
-
-        /*float2 nval = any_free_neighbour_pos(pos, physics_particles_in, physics_boundaries, &found);
-
-        if(found && ((counter % 128) == (gid % 128)))
-        {
-            //new_pos = nval;
-        }*/
     }
 
 
