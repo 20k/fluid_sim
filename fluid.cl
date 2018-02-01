@@ -167,7 +167,7 @@ void fluid_render(__read_only image2d_t field, __write_only image2d_t screen, __
 
     val = fabs(val);
 
-    float2 bound = read_imagef(boundaries, sam, pos).xy;
+    int2 bound = read_imagei(boundaries, sam, pos).xy;
 
     if(bound.x == 1)
         val.xyz = 1;
@@ -260,7 +260,7 @@ void fluid_boundary_tex(__read_only image2d_t field_in, __write_only image2d_t f
                     CLK_ADDRESS_CLAMP_TO_EDGE |
                     CLK_FILTER_NEAREST;
 
-    float2 vals = read_imagef(boundary_texture, sam_near, convert_float2(ipos) + 0.5f).xy;
+    int2 vals = read_imagei(boundary_texture, sam_near, convert_float2(ipos) + 0.5f).xy;
 
     if(vals.x != 1)
         return;
@@ -296,7 +296,7 @@ void fluid_boundary_tex(__read_only image2d_t field_in, __write_only image2d_t f
 
         float2 offset = angle_to_offset(angle_frac);
 
-        float2 nval = read_imagef(boundary_texture, sam_near, pos + 0.5f + offset).xy;
+        int2 nval = read_imagei(boundary_texture, sam_near, pos + 0.5f + offset).xy;
 
         if(nval.x == 1)
         {
@@ -317,7 +317,7 @@ void fluid_boundary_tex(__read_only image2d_t field_in, __write_only image2d_t f
 
         float2 offset = angle_to_offset(angle_frac);
 
-        float2 nval = read_imagef(boundary_texture, sam_near, pos + 0.5f + offset).xy;
+        int2 nval = read_imagei(boundary_texture, sam_near, pos + 0.5f + offset).xy;
 
         if(nval.x == 1)
         {
@@ -356,7 +356,9 @@ void fluid_set_boundary(__write_only image2d_t buffer, float2 pos, float angle)
     if(any(pos < 0) || any(pos >= (float2){gw, gh}))
        return;
 
-    write_imagef(buffer, convert_int2(pos), (float4)(1.f, angle, 0, 0));
+    //write_imagef(buffer, convert_int2(pos), (float4)(1, angle, 0, 0));
+
+    write_imagei(buffer, convert_int2(pos), 1);
 }
 
 
@@ -530,7 +532,7 @@ float2 get_free_neighbour_pos(float2 move_vector, float2 initial, float2 occupie
             if(res.x > 0)
                 continue;
 
-            float4 r2 = read_imagef(boundaries, sam, rcd + 0.5f);
+            int4 r2 = read_imagei(boundaries, sam, rcd + 0.5f);
 
             if(r2.x > 0)
                 continue;
@@ -713,12 +715,12 @@ void falling_sand_physics(__read_only image2d_t velocity, __global struct physic
 
         int found = 0;
 
-        float2 nval = any_free_neighbour_pos(pos, physics_particles_in, physics_boundaries, &found);
+        /*float2 nval = any_free_neighbour_pos(pos, physics_particles_in, physics_boundaries, &found);
 
         if(found && ((counter % 128) == (gid % 128)))
         {
             //new_pos = nval;
-        }
+        }*/
     }
 
 
@@ -739,7 +741,7 @@ void falling_sand_physics(__read_only image2d_t velocity, __global struct physic
 
     new_pos = cpos;
 
-    float4 first_bound = read_imagef(physics_boundaries, sam, cpos);
+    int2 first_bound = read_imagei(physics_boundaries, sam, cpos).x;
 
     if(first_bound.x > 0)
     {
@@ -753,7 +755,7 @@ void falling_sand_physics(__read_only image2d_t velocity, __global struct physic
 
     for(int i=0; i < max_dist + 1; i++, cpos += step)
     {
-        float4 bound = read_imagef(physics_boundaries, sam, cpos);
+        int4 bound = read_imagei(physics_boundaries, sam, cpos);
 
         if(bound.x == 1)
             break;
@@ -778,7 +780,7 @@ void falling_sand_physics(__read_only image2d_t velocity, __global struct physic
             ///the problem here is that we're piling multiple pixels onto the same spot
             //float2 nval = get_free_neighbour_pos(step, pos, cpos, physics_particles_in, physics_boundaries, &found);
 
-            float2 nval = any_free_neighbour_pos(cpos, physics_particles_in, physics_boundaries, &found);
+            /*float2 nval = any_free_neighbour_pos(cpos, physics_particles_in, physics_boundaries, &found);
 
             desire_dir.x = 1;
 
@@ -786,7 +788,9 @@ void falling_sand_physics(__read_only image2d_t velocity, __global struct physic
             {
                 //desire_dir = nval - cpos;
                 //new_pos = nval;
-            }
+            }*/
+
+            desire_dir.x = 1;
 
             //ecol = (float4){0, 1, 0, 1};
 
@@ -919,7 +923,7 @@ void falling_sand_disimpact(__global struct physics_particle* particles, int par
             if(vals.y == 0)
                 continue;
 
-            if(read_imagef(physics_boundaries, sam, global_pos).x > 0)
+            if(read_imagei(physics_boundaries, sam, global_pos).x > 0)
                 continue;
 
             int found = 0;

@@ -132,7 +132,7 @@ struct fluid_manager
         pressure[1]->alloc_img(cqueue, zero_data, velocity_dim, CL_R, CL_HALF_FLOAT);
 
         divergence->alloc_img(cqueue, zero_data, velocity_dim, CL_R, CL_HALF_FLOAT);
-        boundaries->alloc_img(cqueue, zero_data, velocity_dim, CL_RG, CL_HALF_FLOAT);
+        boundaries->alloc_img(cqueue, zero_data, velocity_dim, CL_R, CL_SIGNED_INT8);
 
         dye[0]->alloc_img(cqueue, dye_concentrates, dye_dim);
         dye[1]->alloc_img(cqueue, dye_concentrates, dye_dim);
@@ -141,7 +141,7 @@ struct fluid_manager
         w_of->alloc_img(cqueue, noise_data, velocity_dim, CL_RG, CL_FLOAT);
         upscaled_advected_velocity->alloc_img(cqueue, noise_data, wavelet_dim, CL_RG, CL_FLOAT);
 
-        for(int i=0; i < 100000; i++)
+        for(int i=0; i < 1000000; i++)
         {
             vec2f pos = randv<2, float>(0, 600);
             vec2f pos2 = randv<2, float>(600, 1000);
@@ -523,7 +523,7 @@ struct fluid_manager
 
         cqueue.exec(program, "fluid_render", debug, dye_dim, {16, 16});
 
-        handle_particles(interop, program, cqueue, timestep_s);
+        //handle_particles(interop, program, cqueue, timestep_s);
         handle_falling_sand(interop, program, cqueue, timestep_s);
     }
 };
