@@ -68,6 +68,7 @@
 		<Unit filename="deps/ocl/ocl.hpp" />
 		<Unit filename="fluid.cl" />
 		<Unit filename="fluid.hpp" />
+		<Unit filename="lighting.hpp" />
 		<Unit filename="main.cpp" />
 		<Extensions>
 			<code_completion />

@@ -156,8 +156,8 @@ struct fluid_manager
 
 
         ///need a double buffer class
-        physics_tex[0]->alloc_img(cqueue, zero_data, velocity_dim, CL_R, CL_FLOAT);
-        physics_tex[1]->alloc_img(cqueue, zero_data, velocity_dim, CL_R, CL_FLOAT);
+        physics_tex[0]->alloc_img(cqueue, zero_data, velocity_dim, CL_RGBA, CL_FLOAT);
+        physics_tex[1]->alloc_img(cqueue, zero_data, velocity_dim, CL_RGBA, CL_FLOAT);
 
 
         cl::args w_of_args;
@@ -331,6 +331,17 @@ struct fluid_manager
 
         cqueue.exec(program, "falling_sand_physics", physics_args, {num_particles}, {128});
 
+        p1->clear_to_zero(cqueue);
+
+        cl::args disimpact_args;
+        disimpact_args.push_back(physics_particles);
+        disimpact_args.push_back(num_particles);
+        disimpact_args.push_back(p2); ///fupped
+        disimpact_args.push_back(p1);
+        disimpact_args.push_back(boundaries);
+
+        cqueue.exec(program, "falling_sand_disimpact", disimpact_args, velocity_dim, (vec2i){16, 16});
+
         cl::args render_args;
         render_args.push_back(physics_particles);
         render_args.push_back(num_particles);
@@ -338,9 +349,9 @@ struct fluid_manager
 
         cqueue.exec(program, "falling_sand_render", render_args, {num_particles}, {128});
 
-        which_physics_tex = (which_physics_tex + 1) % 2;
+        //which_physics_tex = (which_physics_tex + 1) % 2;
 
-        p1->clear_to_zero(cqueue);
+        p2->clear_to_zero(cqueue);
     }
 
     ///future improvement: When decoupling dye/visuals from velocity

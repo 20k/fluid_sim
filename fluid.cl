@@ -688,10 +688,12 @@ void falling_sand_physics(__read_only image2d_t velocity, __global struct physic
             ///the problem here is that we're piling multiple pixels onto the same spot
             float2 nval = get_free_neighbour_pos(pos, cpos, physics_particles_in, physics_boundaries, &found);
 
-            desire_dir = nval - cpos;
+            desire_dir.x = 1;
+            desire_dir.y = 1;
 
             if(found)
             {
+                //desire_dir = nval - cpos;
                 //new_pos = nval;
             }
 
@@ -703,7 +705,7 @@ void falling_sand_physics(__read_only image2d_t velocity, __global struct physic
 
     particles[gid].pos = new_pos;
 
-    write_imagef(physics_particles_out, convert_int2(round(new_pos + 0.5f)), (float4)(gid + 1,desire_dir.x, desire_dir.y,0));
+    write_imagef(physics_particles_out, convert_int2(round(new_pos + 0.5f)), (float4)(gid + 1, desire_dir.x, desire_dir.y, 0));
 }
 #endif
 
@@ -713,11 +715,73 @@ void falling_sand_physics(__read_only image2d_t velocity, __global struct physic
 ///if desire_dirs > 0 and we're a suitable pixel (angle < pi / 2 etc), move that particle into me
 ///should be stable
 __kernel
-void falling_sand_disempact(__global struct physics_particle* particles, int particles_num,
+void falling_sand_disimpact(__global struct physics_particle* particles, int particles_num,
                             __read_only image2d_t physics_particles_in, __write_only image2d_t physics_particles_out,
                             __read_only image2d_t physics_boundaries)
 {
+    sampler_t sam = CLK_NORMALIZED_COORDS_FALSE |
+                    CLK_ADDRESS_CLAMP_TO_EDGE |
+                    CLK_FILTER_NEAREST;
 
+    float2 pos = (float2){get_global_id(0), get_global_id(1)};
+
+    float4 in = read_imagef(physics_particles_in, sam, round(pos + 0.5f));
+
+    if(in.x != 0)
+    {
+        write_imagef(physics_particles_out, convert_int2(round(pos + 0.5f)), in);
+        return;
+    }
+
+    float4 is_bound = read_imagef(physics_boundaries, sam, round(pos + 0.5f));
+
+    if(is_bound.x > 0)
+        return;
+
+    ///ok. We're a hole
+    ///check around pixel neighbourhood
+    ///if we find a pixel with a desire path, move them into us
+    ///lots of other pixels will try to grab it
+    ///so: we let them all do it, and whoever gets there last wins
+
+    for(int y=-1; y <= 1; y++)
+    {
+        for(int x=-1; x <= 1; x++)
+        {
+            if(x == 0 && y == 0)
+                continue;
+
+            if(abs(x) == abs(y))
+                continue;
+
+            float2 new_pos = pos + (float2){x, y};
+
+            float4 val = read_imagef(physics_particles_in, sam, round(new_pos + 0.5f));
+
+            int gid = val.x - 1;
+
+            if(gid < 0)
+                continue;
+
+            if(read_imagef(physics_boundaries, sam, round(new_pos + 0.5f)).x > 0)
+                continue;
+
+            float2 desire = val.yz;
+
+            if(desire.x == 0 && desire.y == 0)
+                continue;
+
+            //printf("hello\n");
+
+            particles[gid].pos = new_pos;
+
+            write_imagef(physics_particles_out, convert_int2(round(new_pos + 0.5f)), (float4)(gid + 1, 0,0,0));
+
+            return;
+        }
+    }
+
+    write_imagef(physics_particles_out, convert_int2(round(pos + 0.5f)), (float4)(in.x, 0,0,0));
 }
 
 __kernel
