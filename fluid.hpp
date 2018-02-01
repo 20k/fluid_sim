@@ -9,8 +9,9 @@ struct fluid_particle
 struct physics_particle
 {
     vec2f pos = {0,0};
-    vec2f unused_velocity = {0,0};
-    vec4f col = {0, 0, 1, 1};
+    //vec2f unused_velocity = {0,0};
+    //vec4f col = {0, 0, 1, 1};
+    uint32_t col = 0;
 };
 
 struct fluid_manager
@@ -141,15 +142,16 @@ struct fluid_manager
         w_of->alloc_img(cqueue, noise_data, velocity_dim, CL_RG, CL_FLOAT);
         upscaled_advected_velocity->alloc_img(cqueue, noise_data, wavelet_dim, CL_RG, CL_FLOAT);
 
-        for(int i=0; i < 1000000; i++)
+        for(int i=0; i < 2000000; i++)
         {
             vec2f pos = randv<2, float>(0, 600);
             vec2f pos2 = randv<2, float>(600, 1000);
-            vec2f uvel = {0,0};
 
             cpu_particles.push_back({pos});
 
-            cpu_physics_particles.push_back({pos2, uvel});
+            uint32_t col = rgba_to_uint((vec4f){0.3f, 0.3f, 1.f, 1.f});
+
+            cpu_physics_particles.push_back({pos2, col});
         }
 
         fluid_particles->alloc(cqueue, cpu_particles);

@@ -430,12 +430,38 @@ void fluid_advect_particles(__read_only image2d_t velocity, __global struct flui
     particles[gid].pos = new_pos - 0.5f;
 }
 
+typedef uint uint32_t;
+typedef uchar uint8_t;
+
 struct physics_particle
 {
     float2 pos;
-    float2 unused_velocity;
-    float4 col;
+    uint32_t icol;
 };
+
+uint32_t rgba_to_uint(float4 rgba)
+{
+    rgba = clamp(rgba, 0.f, 1.f);
+
+    uint8_t r = rgba.x * 255;
+    uint8_t g = rgba.y * 255;
+    uint8_t b = rgba.z * 255;
+    uint8_t a = rgba.w * 255;
+
+    uint32_t ret = (r << 24) | (g << 16) | (b << 8) | a;
+
+    return ret;
+}
+
+float4 uint_to_rgba(uint32_t val)
+{
+    uint8_t a = val & 0xFF;
+    uint8_t b = (val >> 8) & 0xFF;
+    uint8_t g = (val >> 16) & 0xFF;
+    uint8_t r = (val >> 24) & 0xFF;
+
+    return (float4){r, g, b, a} / 255.f;
+}
 
 ///so. The problem with this function
 ///is that if we free a hole, next frame we may very well fill it again aimlessly
@@ -684,9 +710,9 @@ void falling_sand_physics(__read_only image2d_t velocity, __global struct physic
         return;
 
     float2 pos = particles[gid].pos;
-    float4 ecol = particles[gid].col;
+    //float4 ecol = particles[gid].col;
 
-    ecol = (float4)(0.3, 0.3, 1, 1);
+    //ecol = (float4)(0.3, 0.3, 1, 1);
 
     //pos += 0.5f;
 
@@ -801,7 +827,7 @@ void falling_sand_physics(__read_only image2d_t velocity, __global struct physic
     }
 
     particles[gid].pos = new_pos;
-    particles[gid].col = ecol;
+    //particles[gid].col = ecol;
 
     write_imagef(physics_particles_out, convert_int2(new_pos), (float4)(gid + 1, desire_dir.x, 0, 0));
 }
@@ -1151,7 +1177,9 @@ void falling_sand_render(__global struct physics_particle* particles, int partic
     if(pos.x >= gw-1 || pos.x < 0 || pos.y >= gh-1 || pos.y < 0)
         return;
 
-    float4 col = particles[gid].col;
+    //float4 col = particles[gid].col;
+
+    float4 col = uint_to_rgba(particles[gid].icol);
 
     write_imagef(screen, convert_int2(pos), (float4){col.xyz,1});
 
