@@ -157,8 +157,8 @@ struct fluid_manager
 
 
         ///need a double buffer class
-        physics_tex[0]->alloc_img(cqueue, zero_data, velocity_dim, CL_RGBA, CL_FLOAT);
-        physics_tex[1]->alloc_img(cqueue, zero_data, velocity_dim, CL_RGBA, CL_FLOAT);
+        physics_tex[0]->alloc_img(cqueue, zero_data, velocity_dim, CL_RG, CL_FLOAT);
+        physics_tex[1]->alloc_img(cqueue, zero_data, velocity_dim, CL_RG, CL_FLOAT);
 
 
         cl::args w_of_args;
@@ -341,7 +341,7 @@ struct fluid_manager
         vec2i offset = {0,0};
 
         if((fsand_id % 2) == 0)
-            offset = {2, 2};
+            offset = {1, 1};
 
         cl::args disimpact_args;
         disimpact_args.push_back(physics_particles);
@@ -351,7 +351,7 @@ struct fluid_manager
         disimpact_args.push_back(boundaries);
         disimpact_args.push_back(offset);
 
-        vec2f upper = ceil((vec2f){velocity_dim.x(), velocity_dim.y()} / (vec2f){4, 4});
+        vec2f upper = ceil((vec2f){velocity_dim.x(), velocity_dim.y()} / (vec2f){2, 2});
 
         cqueue.exec(program, "falling_sand_disimpact", disimpact_args, (vec2i){upper.x(), upper.y()}, (vec2i){16, 16});
 
@@ -525,7 +525,6 @@ struct fluid_manager
 
         handle_particles(interop, program, cqueue, timestep_s);
         handle_falling_sand(interop, program, cqueue, timestep_s);
-
     }
 };
 

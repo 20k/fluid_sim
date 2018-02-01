@@ -439,15 +439,26 @@ struct physics_particle
 ///is that if we free a hole, next frame we may very well fill it again aimlessly
 ///aka this is very unhelpful
 ///what we need is a systematic bias per area i think
+///if i can identify issue with this function and fix it
+///its likely i can port it into the main advection step and have good performance
 float2 any_free_neighbour_pos(float2 occupied, __read_only image2d_t physics_particles, __read_only image2d_t boundaries, int* found)
 {
     sampler_t sam = CLK_NORMALIZED_COORDS_FALSE |
                     CLK_ADDRESS_CLAMP_TO_EDGE |
                     CLK_FILTER_NEAREST;
 
+    int mult = 1;
+
+    int iocc = convert_int2(round(occupied + 0.5f)).x;
+
+    if((iocc % 2) == 0)
+    {
+        mult = -1;
+    }
+
     for(int y=-1; y<=-1; y++)
     {
-        for(int x=-1; x<=-1; x++)
+        for(int x=-1*mult; x<=-1*mult; x++)
         {
             if(x == 0 && y == 0)
                 continue;
@@ -758,12 +769,13 @@ void falling_sand_physics(__read_only image2d_t velocity, __global struct physic
             int found = 0;
 
             ///the problem here is that we're piling multiple pixels onto the same spot
-            float2 nval = get_free_neighbour_pos(step, pos, cpos, physics_particles_in, physics_boundaries, &found);
+            //float2 nval = get_free_neighbour_pos(step, pos, cpos, physics_particles_in, physics_boundaries, &found);
+
+            float2 nval = any_free_neighbour_pos(cpos, physics_particles_in, physics_boundaries, &found);
 
             desire_dir.x = 1;
-            desire_dir.y = 1;
 
-            if(found && ((counter % 1024) == (gid % 1024)))
+            if(found && ((counter % 16) == (gid % 16)))
             {
                 //desire_dir = nval - cpos;
                 //new_pos = nval;
@@ -780,7 +792,7 @@ void falling_sand_physics(__read_only image2d_t velocity, __global struct physic
     particles[gid].pos = new_pos;
     particles[gid].col = ecol;
 
-    write_imagef(physics_particles_out, convert_int2(new_pos), (float4)(gid + 1, desire_dir.x, desire_dir.y, 0));
+    write_imagef(physics_particles_out, convert_int2(new_pos), (float4)(gid + 1, desire_dir.x, 0, 0));
 }
 #endif
 
@@ -878,7 +890,7 @@ void falling_sand_disimpact(__global struct physics_particle* particles, int par
 
     int2 global_bounds = (int2){get_image_width(physics_particles_in), get_image_height(physics_particles_out)};
 
-    int2 block_size = (int2){4, 4};
+    int2 block_size = (int2){2, 2};
 
     pos = pos * block_size + offset;
 
@@ -890,9 +902,6 @@ void falling_sand_disimpact(__global struct physics_particle* particles, int par
         {
             int2 global_pos = pos + (int2){x, y};
 
-            if(read_imagef(physics_boundaries, sam, global_pos).x > 0)
-                continue;
-
             float4 vals = read_imagef(physics_particles_in, sam, global_pos);
 
             int gid = vals.x - 1;
@@ -900,9 +909,11 @@ void falling_sand_disimpact(__global struct physics_particle* particles, int par
             if(gid < 0)
                 continue;
 
-            if(vals.y == 0 && vals.z == 0)
+            if(vals.y == 0)
                 continue;
 
+            if(read_imagef(physics_boundaries, sam, global_pos).x > 0)
+                continue;
 
             int found = 0;
 
@@ -912,7 +923,7 @@ void falling_sand_disimpact(__global struct physics_particle* particles, int par
             {
                 particles[gid].pos = nval;
 
-                particles[gid].col = (float4)(0, 1, 0, 1);
+                //particles[gid].col = (float4)(0, 1, 0, 1);
 
                 broke = true;
 
@@ -923,8 +934,6 @@ void falling_sand_disimpact(__global struct physics_particle* particles, int par
         if(broke)
             break;
     }
-
-    barrier(CLK_GLOBAL_MEM_FENCE);
 
     for(int y=0; y < block_size.y; y++)
     {
