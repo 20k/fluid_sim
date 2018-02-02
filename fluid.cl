@@ -253,7 +253,7 @@ float get_boundary_strength(float2 pos, __read_only image2d_t boundary_texture, 
     if(val == 1)
         return 1.f;
 
-    return read_imagef(particle_boundary_strength, sam_near, convert_float2(pos) + 0.5f).x;
+    return read_imagef(particle_boundary_strength, sam_near, convert_float2(pos) + 0.5f).x / 10.f;
 }
 
 __kernel
@@ -371,8 +371,8 @@ void fluid_boundary_tex(__read_only image2d_t field_in, __write_only image2d_t f
     int2 p1 = convert_int2(pos + fnormal);
     int2 p2 = convert_int2(pos - fnormal);
 
-    float4 base1 = read_imagef(field_in, sam, pos + fnormal + 0.5f);
-    float4 base2 = read_imagef(field_in, sam, pos - fnormal + 0.5f);
+    float4 base1 = read_imagef(field_in, sam, p1);
+    float4 base2 = read_imagef(field_in, sam, p2);
 
     float4 rv1 = read_imagef(field_in, sam, pos + fnormal * 2 + 0.5f);
     float4 rv2 = read_imagef(field_in, sam, pos - fnormal * 2 + 0.5f);
@@ -871,7 +871,7 @@ void falling_sand_edge_boundary_condition(__read_only image2d_t physics_particle
         }
     }
 
-    float frac = (num_found) / 8.f;
+    float frac = num_found / 8.f;
 
     write_imagef(boundaries_out, pos, frac);
 
