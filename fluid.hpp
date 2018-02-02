@@ -173,7 +173,7 @@ struct fluid_manager
         {
             for(float x=0; x < dye_dim.x(); x+=0.5f)
             {
-                uint32_t col = rgba_to_uint((vec4f){0.3f, 0.3f, 1.f, 1.f});
+                uint32_t col = rgba_to_uint((vec4f){0.3f, 1.f, 0.3f, 1.f});
 
                 vec2f pos = {x, y};
 

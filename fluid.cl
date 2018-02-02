@@ -887,12 +887,14 @@ void falling_sand_edge_boundary_condition(__read_only image2d_t physics_particle
     float frac = num_found / 9.f;
 
     ///TODO URGENT: TIMESTEP
-    vel = vel - vel * 0.01f * frac;
+    vel = vel - vel * 0.02f * frac;
 
     if(frac == 1)
         frac = 0;
 
-    frac = frac / 8.f;
+    frac = frac / 16.f;
+
+    frac = 0;
 
     write_imagef(boundaries_out, convert_int2(convert_float2(pos) / scale), frac);
 
