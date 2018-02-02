@@ -121,13 +121,18 @@ struct fluid_manager
         {
             vec2f centre = {dye_dim.x()/2.f, dye_dim.y()/2.f};
 
-            vec2f dye_val;
+            #define SKY
+            #ifdef SKY
+            vec3f dye_val = {0.3, 0.3, 0.7 + randf_s(0, 0.3)};
+            #else
+            vec3f dye_val = {0,0,0};
 
             dye_val.x() = ((vec2f){x, y} - centre).length() / dye_dim.length();
 
-            dye_val += fabs(randv<2, float>(-0.2f, 0.2f));
+            dye_val.xy() += fabs(randv<2, float>(-0.2f, 0.2f));
+            #endif // SKY
 
-            dye_concentrates.push_back({dye_val.x(), dye_val.y(), 0.f, 1.f});
+            dye_concentrates.push_back({dye_val.x(), dye_val.y(), dye_val.z(), 1.f});
         }
 
         std::vector<float> noise_data;

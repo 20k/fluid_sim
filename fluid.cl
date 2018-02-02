@@ -172,6 +172,8 @@ void fluid_render(__read_only image2d_t field, __write_only image2d_t screen, __
     if(bound.x == 1)
         val.xyz = 1;
 
+    val = clamp(val, 0.f, 1.f);
+
     write_imagef(screen, convert_int2(pos), (float4)(val.xyz, 1.f));
 }
 
