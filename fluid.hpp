@@ -91,6 +91,7 @@ struct fluid_manager
         std::vector<vec4f> zero_data;
         std::vector<vec4f> dye_concentrates;
         std::vector<vec2f> velocity_info;
+        std::vector<cl_uchar> boundary_data;
 
         for(int y=0; y < velocity_dim.y(); y++)
         for(int x=0; x < velocity_dim.x(); x++)
@@ -102,6 +103,15 @@ struct fluid_manager
             velocity_info.push_back(fluid_val);
 
             zero_data.push_back({0,0,0,0});
+
+            if(x == 0 || x == velocity_dim.x() - 1 || y == 0 || y == velocity_dim.y() - 1)
+            {
+                boundary_data.push_back(1);
+            }
+            else
+            {
+                boundary_data.push_back(0);
+            }
         }
 
         for(int y=0; y < dye_dim.y(); y++)
@@ -126,6 +136,7 @@ struct fluid_manager
             noise_data.push_back(randf_s(0.f, 1.f));
         }
 
+
         velocity[0]->alloc_img(cqueue, velocity_info, velocity_dim, CL_RG, CL_FLOAT);
         velocity[1]->alloc_img(cqueue, velocity_info, velocity_dim, CL_RG, CL_FLOAT);
 
@@ -133,7 +144,7 @@ struct fluid_manager
         pressure[1]->alloc_img(cqueue, zero_data, velocity_dim, CL_R, CL_HALF_FLOAT);
 
         divergence->alloc_img(cqueue, zero_data, velocity_dim, CL_R, CL_HALF_FLOAT);
-        boundaries->alloc_img(cqueue, zero_data, velocity_dim, CL_R, CL_SIGNED_INT8);
+        boundaries->alloc_img(cqueue, boundary_data, velocity_dim, CL_R, CL_SIGNED_INT8);
 
         dye[0]->alloc_img(cqueue, dye_concentrates, dye_dim);
         dye[1]->alloc_img(cqueue, dye_concentrates, dye_dim);

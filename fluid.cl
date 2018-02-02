@@ -250,6 +250,8 @@ void fluid_boundary_tex(__read_only image2d_t field_in, __write_only image2d_t f
     if(ipos.x >= gw || ipos.y >= gh)
         return;
 
+    float2 sdim = (float2){gw, gh};
+
     float2 pos = convert_float2(ipos);
 
     sampler_t sam = CLK_NORMALIZED_COORDS_FALSE |
@@ -296,6 +298,9 @@ void fluid_boundary_tex(__read_only image2d_t field_in, __write_only image2d_t f
 
         float2 offset = angle_to_offset(angle_frac);
 
+        if(any(pos + offset < 0) || any(pos + offset >= sdim))
+            continue;
+
         int2 nval = read_imagei(boundary_texture, sam_near, pos + 0.5f + offset).xy;
 
         if(nval.x == 1)
@@ -316,6 +321,9 @@ void fluid_boundary_tex(__read_only image2d_t field_in, __write_only image2d_t f
         float angle_frac = 2 * M_PI * (float)id / angles;
 
         float2 offset = angle_to_offset(angle_frac);
+
+        if(any(pos + offset < 0) || any(pos + offset >= sdim))
+            continue;
 
         int2 nval = read_imagei(boundary_texture, sam_near, pos + 0.5f + offset).xy;
 
@@ -781,6 +789,9 @@ void falling_sand_disimpact(__global struct physics_particle* particles, int par
     }
 }
 
+///maybe this should work on a pixel by pixel basis?
+///would run in constant time rather than variable on pixels
+///probably more memory friendly too
 __kernel
 void falling_sand_render(__global struct physics_particle* particles, int particles_num, __write_only image2d_t screen)
 {
