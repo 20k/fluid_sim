@@ -253,7 +253,7 @@ float get_boundary_strength(float2 pos, __read_only image2d_t boundary_texture, 
     if(val == 1)
         return 1.f;
 
-    return read_imagef(particle_boundary_strength, sam_near, convert_float2(pos) + 0.5f).x / 10.f;
+    return read_imagef(particle_boundary_strength, sam_near, convert_float2(pos) + 0.5f).x;
 }
 
 __kernel
@@ -644,7 +644,7 @@ float2 get_free_neighbour_pos(float2 move_vector, float2 initial, float2 occupie
 __kernel
 void falling_sand_physics(__read_only image2d_t velocity, __global struct physics_particle* particles, int particles_num, float timestep, float2 scale,
                           __read_only image2d_t physics_particles_in, __write_only image2d_t physics_particles_out, __read_only image2d_t physics_boundaries,
-                          unsigned int counter)
+                          __read_only image2d_t physics_particles_boundary)
 {
     int gid = get_global_id(0);
 
@@ -664,7 +664,13 @@ void falling_sand_physics(__read_only image2d_t velocity, __global struct physic
 
     float2 gravity = {0, -0.098};
 
-    float2 new_pos = pos + timestep * rdx * read_imagef(velocity, sam, pos / scale).xy + gravity;
+    float velocity_contribution = 1.f - read_imagef(physics_particles_boundary, sam, pos).x;
+
+    //velocity_contribution = (velocity_contribution + 0.5f)/2.f;
+
+    particles[gid].icol = rgba_to_uint(velocity_contribution);
+
+    float2 new_pos = pos + velocity_contribution * timestep * rdx * read_imagef(velocity, sam, pos / scale).xy + gravity;
 
     float4 current_physp = read_imagef(physics_particles_in, sam, pos);
 
@@ -831,13 +837,13 @@ void falling_sand_disimpact(__global struct physics_particle* particles, int par
 ///the kernel which handles the boundary generation isn't robust enough yet
 ///for what i want to do here
 __kernel
-void falling_sand_edge_boundary_condition(__read_only image2d_t physics_particles_in, __write_only image2d_t boundaries_out, float2 scale)
+void falling_sand_edge_boundary_condition(__read_only image2d_t physics_particles_in, __read_only image2d_t fixed_boundaries, __write_only image2d_t boundaries_out, float2 scale)
 {
     int2 pos = (int2){get_global_id(0), get_global_id(1)};
 
     int2 dim = (int2){get_image_width(physics_particles_in), get_image_height(physics_particles_in)};
 
-    if(any(pos < 0) || any(pos >= dim))
+    if(any(pos < 1) || any(pos >= dim-1))
         return;
 
     sampler_t sam = CLK_NORMALIZED_COORDS_FALSE |
@@ -849,7 +855,11 @@ void falling_sand_edge_boundary_condition(__read_only image2d_t physics_particle
     int gid = val - 1;
 
     ///if we're a particle skippity skip
+    ///remove this for no jitter
     if(gid >= 0)
+        return;
+
+    if(read_imagei(fixed_boundaries, sam, pos).x > 0)
         return;
 
     int num_found = 0;
@@ -858,7 +868,13 @@ void falling_sand_edge_boundary_condition(__read_only image2d_t physics_particle
     {
         for(int x=-1; x <= 1; x++)
         {
+            //if(x == 0 && y == 0)
+            //    continue;
+
             int2 global_offset = pos + (int2){x, y};
+
+            if(any(global_offset < 1) || any(global_offset >= dim-1))
+                continue;
 
             float nval = read_imagef(physics_particles_in, sam, global_offset).x;
 
@@ -871,7 +887,13 @@ void falling_sand_edge_boundary_condition(__read_only image2d_t physics_particle
         }
     }
 
-    float frac = num_found / 8.f;
+    float frac = num_found / 9.f;
+
+    //frac = frac * frac;
+
+    //frac = frac / 10.f;
+
+    //frac = frac * frac * frac;
 
     write_imagef(boundaries_out, convert_int2(convert_float2(pos) / scale), frac);
 

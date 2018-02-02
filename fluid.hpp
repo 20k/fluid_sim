@@ -363,7 +363,7 @@ struct fluid_manager
         physics_args.push_back(p1);
         physics_args.push_back(p2);
         physics_args.push_back(boundaries);
-        physics_args.push_back(phys_counter);
+        physics_args.push_back(physics_particles_boundary);
 
         cqueue.exec(program, "falling_sand_physics", physics_args, {num_particles}, {128});
 
@@ -392,6 +392,7 @@ struct fluid_manager
         #ifdef PARTICLES_INTERFERE_WITH_FLUID
         cl::args generate_args;
         generate_args.push_back(p1);
+        generate_args.push_back(boundaries);
         generate_args.push_back(physics_particles_boundary);
         generate_args.push_back(scale);
 
