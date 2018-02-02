@@ -239,8 +239,26 @@ float2 angle_to_offset(float angle)
 ///this method assumes that each fluid boundary pixel is connected to two others
 ///and then creates boundaries on both side of the line
 ///its not 1000% perfect but it works better than i expected
+///need to do a pixelwise edge detect for particle blocks, aka sobel or something
+///then pass the result into here
+
+float get_boundary_strength(float2 pos, __read_only image2d_t boundary_texture, __read_only image2d_t particle_boundary_strength)
+{
+    sampler_t sam_near = CLK_NORMALIZED_COORDS_FALSE |
+                    CLK_ADDRESS_CLAMP_TO_EDGE |
+                    CLK_FILTER_NEAREST;
+
+    int val = read_imagei(boundary_texture, sam_near, convert_float2(pos) + 0.5f).x;
+
+    if(val == 1)
+        return 1.f;
+
+    return read_imagef(particle_boundary_strength, sam_near, convert_float2(pos) + 0.5f).x;
+}
+
 __kernel
-void fluid_boundary_tex(__read_only image2d_t field_in, __write_only image2d_t field_out, float scale, __read_only image2d_t boundary_texture)
+void fluid_boundary_tex(__read_only image2d_t field_in, __write_only image2d_t field_out, float scale, __read_only image2d_t boundary_texture,
+                        __read_only image2d_t particle_boundary_strength)
 {
     int2 ipos = (int2){get_global_id(0), get_global_id(1)};
 
@@ -258,13 +276,14 @@ void fluid_boundary_tex(__read_only image2d_t field_in, __write_only image2d_t f
                     CLK_ADDRESS_CLAMP_TO_EDGE |
                     CLK_FILTER_LINEAR;
 
-    sampler_t sam_near = CLK_NORMALIZED_COORDS_FALSE |
-                    CLK_ADDRESS_CLAMP_TO_EDGE |
-                    CLK_FILTER_NEAREST;
-
-    int2 vals = read_imagei(boundary_texture, sam_near, convert_float2(ipos) + 0.5f).xy;
+    /*int2 vals = read_imagei(boundary_texture, sam_near, convert_float2(ipos) + 0.5f).xy;
 
     if(vals.x != 1)
+        return;*/
+
+    float base_strength = get_boundary_strength(pos, boundary_texture, particle_boundary_strength);
+
+    if(base_strength <= 0)
         return;
 
     ///should work this out automatically in the future
@@ -292,6 +311,8 @@ void fluid_boundary_tex(__read_only image2d_t field_in, __write_only image2d_t f
 
     int range_start = -999;
 
+    float current_strength = 0.f;
+
     for(int i=0; i < angles; i++)
     {
         float angle_frac = 2 * M_PI * (float)i / angles;
@@ -301,10 +322,19 @@ void fluid_boundary_tex(__read_only image2d_t field_in, __write_only image2d_t f
         if(any(pos + offset < 0) || any(pos + offset >= sdim))
             continue;
 
-        int2 nval = read_imagei(boundary_texture, sam_near, pos + 0.5f + offset).xy;
+        /*int2 nval = read_imagei(boundary_texture, sam_near, pos + 0.5f + offset).xy;
 
         if(nval.x == 1)
         {
+            range_start = i;
+        }*/
+
+        float strength = get_boundary_strength(pos + offset, boundary_texture, particle_boundary_strength);
+
+        if(strength > 0)
+        {
+            current_strength = strength;
+
             range_start = i;
         }
     }
@@ -325,10 +355,12 @@ void fluid_boundary_tex(__read_only image2d_t field_in, __write_only image2d_t f
         if(any(pos + offset < 0) || any(pos + offset >= sdim))
             continue;
 
-        int2 nval = read_imagei(boundary_texture, sam_near, pos + 0.5f + offset).xy;
+        float strength = get_boundary_strength(pos + offset, boundary_texture, particle_boundary_strength);
 
-        if(nval.x == 1)
+        if(strength > 0)
         {
+            current_strength = (current_strength + strength)/2.f;
+
             fnormalangle = (angle_frac + 2 * M_PI * (float)range_start / angles) / 2.f;
             break;
         }
@@ -339,11 +371,17 @@ void fluid_boundary_tex(__read_only image2d_t field_in, __write_only image2d_t f
     int2 p1 = convert_int2(pos + fnormal);
     int2 p2 = convert_int2(pos - fnormal);
 
+    float4 base1 = read_imagef(field_in, sam, pos + fnormal + 0.5f);
+    float4 base2 = read_imagef(field_in, sam, pos - fnormal + 0.5f);
+
     float4 rv1 = read_imagef(field_in, sam, pos + fnormal * 2 + 0.5f);
     float4 rv2 = read_imagef(field_in, sam, pos - fnormal * 2 + 0.5f);
 
     rv1 = rv1 * scale;
     rv2 = rv2 * scale;
+
+    rv1 = mix(base1, rv1, current_strength);
+    rv2 = mix(base2, rv2, current_strength);
 
     write_imagef(field_out, p1, rv1);
     write_imagef(field_out, p2, rv2);
@@ -787,6 +825,58 @@ void falling_sand_disimpact(__global struct physics_particle* particles, int par
             write_imagef(physics_particles_out, convert_int2(rpos), (float4){gid + 1, 0,0,0});
         }
     }
+}
+
+///write strength fraction out
+///the kernel which handles the boundary generation isn't robust enough yet
+///for what i want to do here
+__kernel
+void falling_sand_edge_boundary_condition(__read_only image2d_t physics_particles_in, __write_only image2d_t boundaries_out)
+{
+    int2 pos = (int2){get_global_id(0), get_global_id(1)};
+
+    int2 dim = (int2){get_image_width(physics_particles_in), get_image_height(physics_particles_in)};
+
+    if(any(pos < 0) || any(pos >= dim))
+        return;
+
+    sampler_t sam = CLK_NORMALIZED_COORDS_FALSE |
+                    CLK_ADDRESS_CLAMP_TO_EDGE |
+                    CLK_FILTER_NEAREST;
+
+    float val = read_imagef(physics_particles_in, sam, pos).x;
+
+    int gid = val - 1;
+
+    ///if we're a particle skippity skip
+    if(gid >= 0)
+        return;
+
+    int num_found = 0;
+
+    for(int y=-1; y <= 1; y++)
+    {
+        for(int x=-1; x <= 1; x++)
+        {
+            int2 global_offset = pos + (int2){x, y};
+
+            float nval = read_imagef(physics_particles_in, sam, global_offset).x;
+
+            int ngid = nval - 1;
+
+            if(ngid >= 0)
+            {
+                num_found++;
+            }
+        }
+    }
+
+    float frac = (num_found) / 8.f;
+
+    write_imagef(boundaries_out, pos, frac);
+
+    //if(frac > 0)
+    //    printf("frac %f\n", frac);
 }
 
 ///maybe this should work on a pixel by pixel basis?

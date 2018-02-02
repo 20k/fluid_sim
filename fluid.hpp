@@ -34,6 +34,7 @@ struct fluid_manager
     ///falling sand
     cl::buffer* physics_particles;
     cl::buffer* physics_tex[2];
+    cl::buffer* physics_particles_boundary;
     int which_physics_tex = 0;
     std::vector<physics_particle> cpu_physics_particles;
 
@@ -81,6 +82,7 @@ struct fluid_manager
 
         fluid_particles = buffers.fetch<cl::buffer>(ctx, nullptr);
         physics_particles = buffers.fetch<cl::buffer>(ctx, nullptr);
+        physics_particles_boundary = buffers.fetch<cl::buffer>(ctx, nullptr);
         physics_tex[0] = buffers.fetch<cl::buffer>(ctx, nullptr);
         physics_tex[1] = buffers.fetch<cl::buffer>(ctx, nullptr);
 
@@ -136,7 +138,6 @@ struct fluid_manager
             noise_data.push_back(randf_s(0.f, 1.f));
         }
 
-
         velocity[0]->alloc_img(cqueue, velocity_info, velocity_dim, CL_RG, CL_FLOAT);
         velocity[1]->alloc_img(cqueue, velocity_info, velocity_dim, CL_RG, CL_FLOAT);
 
@@ -145,6 +146,8 @@ struct fluid_manager
 
         divergence->alloc_img(cqueue, zero_data, velocity_dim, CL_R, CL_HALF_FLOAT);
         boundaries->alloc_img(cqueue, boundary_data, velocity_dim, CL_R, CL_SIGNED_INT8);
+
+        physics_particles_boundary->alloc_img(cqueue, zero_data, velocity_dim, CL_R, CL_HALF_FLOAT);
 
         dye[0]->alloc_img(cqueue, dye_concentrates, dye_dim);
         dye[1]->alloc_img(cqueue, dye_concentrates, dye_dim);
@@ -215,6 +218,7 @@ struct fluid_manager
         cqueue.exec(program, "fluid_boundary", vel_args, velocity_dim, {16, 16});
 
         vel_args.push_back(boundaries);
+        vel_args.push_back(physics_particles_boundary);
 
         cqueue.exec(program, "fluid_boundary_tex", vel_args, velocity_dim, {16, 16});
     }
@@ -234,6 +238,7 @@ struct fluid_manager
         cqueue.exec(program, "fluid_boundary", vel_args, velocity_dim, {16, 16});
 
         vel_args.push_back(boundaries);
+        vel_args.push_back(physics_particles_boundary);
 
         cqueue.exec(program, "fluid_boundary_tex", vel_args, velocity_dim, {16, 16});
     }
@@ -367,6 +372,17 @@ struct fluid_manager
         vec2f upper = ceil((vec2f){velocity_dim.x(), velocity_dim.y()} / (vec2f){2, 2});
 
         cqueue.exec(program, "falling_sand_disimpact", disimpact_args, (vec2i){upper.x(), upper.y()}, (vec2i){16, 16});
+
+        physics_particles_boundary->clear_to_zero(cqueue);
+
+        #define PARTICLES_INTERFERE_WITH_FLUID
+        #ifdef PARTICLES_INTERFERE_WITH_FLUID
+        cl::args generate_args;
+        generate_args.push_back(p1);
+        generate_args.push_back(physics_particles_boundary);
+
+        cqueue.exec(program, "falling_sand_edge_boundary_condition", generate_args, velocity_dim, {16, 16});
+        #endif // PARTICLES_INTERFERE_WITH_FLUID
 
         cl::args render_args;
         render_args.push_back(physics_particles);
