@@ -163,9 +163,22 @@ struct fluid_manager
 
             cpu_particles.push_back({pos});
 
-            uint32_t col = rgba_to_uint((vec4f){0.3f, 0.3f, 1.f, 1.f});
+            //uint32_t col = rgba_to_uint((vec4f){0.3f, 0.3f, 1.f, 1.f});
 
-            cpu_physics_particles.push_back({pos2, col});
+            //cpu_physics_particles.push_back({pos2, col});
+        }
+
+
+        for(float y=0; y < dye_dim.y()/2; y+=0.5f)
+        {
+            for(float x=0; x < dye_dim.x(); x+=0.5f)
+            {
+                uint32_t col = rgba_to_uint((vec4f){0.3f, 0.3f, 1.f, 1.f});
+
+                vec2f pos = {x, y};
+
+                cpu_physics_particles.push_back({pos, col});
+            }
         }
 
         fluid_particles->alloc(cqueue, cpu_particles);
@@ -380,6 +393,7 @@ struct fluid_manager
         cl::args generate_args;
         generate_args.push_back(p1);
         generate_args.push_back(physics_particles_boundary);
+        generate_args.push_back(scale);
 
         cqueue.exec(program, "falling_sand_edge_boundary_condition", generate_args, velocity_dim, {16, 16});
         #endif // PARTICLES_INTERFERE_WITH_FLUID

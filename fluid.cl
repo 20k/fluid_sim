@@ -831,7 +831,7 @@ void falling_sand_disimpact(__global struct physics_particle* particles, int par
 ///the kernel which handles the boundary generation isn't robust enough yet
 ///for what i want to do here
 __kernel
-void falling_sand_edge_boundary_condition(__read_only image2d_t physics_particles_in, __write_only image2d_t boundaries_out)
+void falling_sand_edge_boundary_condition(__read_only image2d_t physics_particles_in, __write_only image2d_t boundaries_out, float2 scale)
 {
     int2 pos = (int2){get_global_id(0), get_global_id(1)};
 
@@ -873,7 +873,7 @@ void falling_sand_edge_boundary_condition(__read_only image2d_t physics_particle
 
     float frac = num_found / 8.f;
 
-    write_imagef(boundaries_out, pos, frac);
+    write_imagef(boundaries_out, convert_int2(convert_float2(pos) / scale), frac);
 
     //if(frac > 0)
     //    printf("frac %f\n", frac);
