@@ -346,6 +346,7 @@ struct fluid_manager
         interop->acquire(cqueue);
 
         cl::buffer* v1 = get_velocity_buf(0);
+        cl::buffer* v2 = get_velocity_buf(1);
 
         int num_particles = cpu_physics_particles.size();
 
@@ -363,7 +364,6 @@ struct fluid_manager
         physics_args.push_back(p1);
         physics_args.push_back(p2);
         physics_args.push_back(boundaries);
-        physics_args.push_back(physics_particles_boundary);
 
         cqueue.exec(program, "falling_sand_physics", physics_args, {num_particles}, {128});
 
@@ -395,6 +395,8 @@ struct fluid_manager
         generate_args.push_back(boundaries);
         generate_args.push_back(physics_particles_boundary);
         generate_args.push_back(scale);
+        generate_args.push_back(v1);
+        generate_args.push_back(v1);
 
         cqueue.exec(program, "falling_sand_edge_boundary_condition", generate_args, velocity_dim, {16, 16});
         #endif // PARTICLES_INTERFERE_WITH_FLUID
