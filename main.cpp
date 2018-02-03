@@ -30,6 +30,7 @@ int main()
     //cl::kernel test_kernel(program, "test_kernel");
 
     cl::command_queue cqueue(ctx);
+    cl::command_queue readback_queue(ctx); ///erm. Sure. Lets pretend nothing can go wrong with this
 
     cl::buffer_manager buffer_manage;
 
@@ -161,8 +162,9 @@ int main()
         /*cqueue.exec(program, "fluid_test", none, {800, 600}, {16, 16});
         cqueue.block();*/
 
-        fluid_manage.tick(interop, buffer_manage, program, cqueue);
 
+        fluid_manage.tick(interop, buffer_manage, program, cqueue);
+        physics.issue_gpu_reads(readback_queue, fluid_manage.get_velocity_buf(0));
 
         //lighting_manage.tick(interop, buffer_manage, program, cqueue, cur_mouse, fluid_manage.dye[fluid_manage.which_dye]);
 
@@ -178,13 +180,11 @@ int main()
         win.display();
         win.clear();
 
-        physics.process_gpu_reads();
-
         ///TODO:
         ///should do one frame ahead shenanigans
         cqueue.block();
 
-        physics.issue_gpu_reads(cqueue, fluid_manage.get_velocity_buf(0));
+        physics.process_gpu_reads();
 
     }
 

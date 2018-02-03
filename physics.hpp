@@ -37,6 +37,8 @@ struct physics_body
 
     cl::read_event<vec2f> last_read;
 
+    //std::vector<cl::read_event<vec2f>> unfinished_reads;
+
     void process_read()
     {
         if(!last_read.bad())
@@ -47,6 +49,22 @@ struct physics_body
 
             last_read.del();
         }
+
+        /*for(int i=0; i < unfinished_reads.size(); i++)
+        {
+            cl::read_event<vec2f> cur = unfinished_reads[i];
+
+            if(cur.finished())
+            {
+                for(int kk=0; kk < i + 1; kk++)
+                {
+                    unfinished_reads.erase(unfinished_reads.begin());
+                }
+
+                unprocessed_fluid_velocity = cur[0];
+                return;
+            }
+        }*/
     }
 
     void issue_read(cl::command_queue& cqueue, cl::buffer* velocity_buffer)
@@ -56,6 +74,11 @@ struct physics_body
         vec2i ipos = {pos.x(), pos.y()};
 
         last_read = velocity_buffer->async_read<vec2f>(cqueue, ipos, {1, 1}, true);
+
+        /*if(!last_read.bad())
+        {
+            unfinished_reads.push_back(last_read);
+        }*/
     }
 
     std::vector<vec2f> decompose_centrally(const std::vector<vec2f>& vert_in)
@@ -342,6 +365,10 @@ struct physics_rigidbodies
 
         for(physics_body* pbody : elems)
         {
+            /*if(pbody->unfinished_reads.size() > 2)
+            {
+                events.push_back(&pbody->unfinished_reads[0]);
+            }*/
             events.push_back(&pbody->last_read);
         }
 
@@ -359,6 +386,8 @@ struct physics_rigidbodies
         {
             pbody->issue_read(cqueue, velocity);
         }
+
+        clFlush(cqueue);
     }
 
     ~physics_rigidbodies()
