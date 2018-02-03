@@ -1,6 +1,8 @@
 #ifndef PHYSICS_HPP_INCLUDED
 #define PHYSICS_HPP_INCLUDED
 
+#include <assert.h>
+
 #include <btBulletDynamicsCommon.h>
 #include <BulletCollision/CollisionShapes/btBox2dShape.h>
 #include <BulletCollision/CollisionShapes/btConvex2dShape.h>
@@ -15,9 +17,52 @@ struct physics_body
     btRigidBody* body = nullptr;
     btConvexShape* saved_shape = nullptr;
 
-    void init_sphere(float mass, vec3f start_pos = {0,0,0})
+    std::vector<vec2f> decompose_centrally(const std::vector<vec2f>& vert_in)
     {
-        btConvexShape* shape = new btSphereShape(1);
+        assert(vert_in.size() > 0);
+
+        vec2f centre = {0,0};
+
+        for(vec2f pos : vert_in)
+        {
+            centre += pos;
+        }
+
+        centre = centre / vert_in.size();
+
+        std::vector<vec2f> decomp;
+
+        for(int i=0; i < (int)vert_in.size(); i++)
+        {
+            int cur = i;
+            int next = (i + 1) % vert_in.size();
+
+            vec2f cur_pos = vert_in[cur];
+            vec2f next_pos = vert_in[next];
+
+            decomp.push_back(cur_pos);
+            decomp.push_back(next_pos);
+            decomp.push_back(centre);
+        }
+
+        return decomp;
+    }
+
+    void init_sphere(float mass, float rad, vec3f start_pos = {0,0,0})
+    {
+        btSphereShape* shape = new btSphereShape(rad);
+
+        sf::CircleShape cshape(shape->getRadius());
+        int num_points = cshape.getPointCount();
+
+        for(int i=0; i < num_points; i++)
+        {
+            auto vert = cshape.getPoint(i);
+
+            vertices.push_back({vert.x - rad, vert.y - rad});
+        }
+
+        vertices = decompose_centrally(vertices);
 
         init(mass, shape, start_pos);
     }
@@ -26,7 +71,19 @@ struct physics_body
     {
         vec3f half_extents = full_dimensions/2.f;
 
-        btConvexShape* shape = new btBoxShape(btVector3(half_extents.x(), half_extents.y(), half_extents.z()));
+        btBoxShape* shape = new btBoxShape(btVector3(half_extents.x(), half_extents.y(), half_extents.z()));
+
+        int num_vertices = shape->getNumVertices();
+
+        for(int i=0; i < num_vertices; i++)
+        {
+            btVector3 out;
+            shape->getVertex(i, out);
+
+            vertices.push_back({out.getX(), out.getY()});
+        }
+
+        vertices = decompose_centrally(vertices);
 
         init(mass, shape, start_pos);
     }
@@ -61,11 +118,26 @@ struct physics_body
         btVector3 pos = trans.getOrigin();
         btQuaternion rotation = trans.getRotation();
 
-        sf::CircleShape circle;
-        circle.setRadius(10);
-        circle.setPosition(pos.getX(), pos.getY());
+        std::vector<sf::Vertex> verts;
 
-        win.draw(circle);
+        for(int i=0; i < vertices.size(); i++)
+        {
+            vec2f local_pos = vertices[i];
+            vec2f global_pos = local_pos + (vec2f){pos.getX(), pos.getY()};
+
+            sf::Vertex vert;
+            vert.position = sf::Vector2f(global_pos.x(), global_pos.y());
+
+            verts.push_back(vert);
+        }
+
+        /*sf::CircleShape circle;
+        circle.setRadius(10);
+        circle.setPosition(pos.getX(), pos.getY());*/
+
+        //win.draw(circle);
+
+        win.draw(&verts[0], verts.size(), sf::Triangles);
     }
 
     void add(btDynamicsWorld* world)
@@ -82,7 +154,7 @@ struct physics_rigidbodies
     {
         physics_body* pbody = new physics_body;
 
-        pbody->init_sphere(mass, start_pos);
+        pbody->init_sphere(mass, 5, start_pos);
 
         elems.push_back(pbody);
 
