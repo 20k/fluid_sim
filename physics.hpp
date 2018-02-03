@@ -71,7 +71,7 @@ struct physics_body
     {
         vec3f half_extents = full_dimensions/2.f;
 
-        btBoxShape* shape = new btBoxShape(btVector3(half_extents.x(), half_extents.y(), half_extents.z()));
+        btBox2dShape* shape = new btBox2dShape(btVector3(half_extents.x(), half_extents.y(), half_extents.z()));
 
         int num_vertices = shape->getNumVertices();
 
@@ -150,11 +150,11 @@ struct physics_rigidbodies
 {
     std::vector<physics_body*> elems;
 
-    physics_body* make_sphere(float mass, vec3f start_pos = {0,0,0})
+    physics_body* make_sphere(float mass, float rad, vec3f start_pos = {0,0,0})
     {
         physics_body* pbody = new physics_body;
 
-        pbody->init_sphere(mass, 5, start_pos);
+        pbody->init_sphere(mass, rad, start_pos);
 
         elems.push_back(pbody);
 
@@ -217,8 +217,8 @@ struct physics_rigidbodies
 
         //fall.init_sphere(1.f, {0, 50, 0});
 
-        physics_body* pb1 = make_sphere(1.f, {0, 50, 0});
-        physics_body* pb2 = make_sphere(1.f, {1, 60, 0});
+        physics_body* pb1 = make_sphere(1.f, 5.f, {0, 50, 0});
+        physics_body* pb2 = make_sphere(1.f, 5.f, {1, 60, 0});
 
         pb1->add(dynamicsWorld);
         pb2->add(dynamicsWorld);
