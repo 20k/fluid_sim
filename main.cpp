@@ -99,8 +99,6 @@ int main()
 
     physics.init();
 
-    physics.tick(win);
-
     sf::Clock clk;
     sf::Keyboard key;
 
@@ -162,9 +160,12 @@ int main()
 
         fluid_manage.tick(interop, buffer_manage, program, cqueue);
 
+
         //lighting_manage.tick(interop, buffer_manage, program, cqueue, cur_mouse, fluid_manage.dye[fluid_manage.which_dye]);
 
         interop->gl_blit_me(0, cqueue);
+
+        physics.tick(win);
 
         if(key.isKeyPressed(sf::Keyboard::Escape))
             system("Pause");
