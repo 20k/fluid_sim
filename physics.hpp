@@ -302,11 +302,15 @@ struct physics_rigidbodies
 
         //fall.init_sphere(1.f, {0, 50, 0});
 
-        physics_body* pb1 = make_sphere(1.f, 5.f, {500, 50, 0});
-        physics_body* pb2 = make_sphere(1.f, 5.f, {501, 60, 0});
+        for(int i=0; i < 100; i++)
+        {
+            physics_body* pb1 = make_sphere(1.f, 5.f, {500 + 5 * i, 50, 0});
 
-        pb1->add(dynamicsWorld);
-        pb2->add(dynamicsWorld);
+            pb1->add(dynamicsWorld);
+        }
+        //physics_body* pb2 = make_sphere(1.f, 5.f, {501, 60, 0});
+
+        //pb2->add(dynamicsWorld);
     }
 
     void tick(double timestep_s, double fluid_timestep_s)
