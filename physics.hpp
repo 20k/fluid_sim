@@ -2,17 +2,22 @@
 #define PHYSICS_HPP_INCLUDED
 
 #include <btBulletDynamicsCommon.h>
+#include <BulletCollision/CollisionShapes/btBox2dShape.h>
+#include <BulletCollision/CollisionShapes/btConvex2dShape.h>
+#include <BulletCollision/CollisionDispatch/btBox2dBox2dCollisionAlgorithm.h>
+#include <BulletCollision/CollisionDispatch/btConvex2dConvex2dAlgorithm.h>
+#include <BulletCollision/NarrowPhaseCollision/btMinkowskiPenetrationDepthSolver.h>
 
 struct physics_body
 {
     std::vector<vec2f> vertices;
 
     btRigidBody* body = nullptr;
-    btCollisionShape* saved_shape = nullptr;
+    btConvexShape* saved_shape = nullptr;
 
     void init_sphere(float mass, vec3f start_pos = {0,0,0})
     {
-        btCollisionShape* shape = new btSphereShape(1);
+        btConvexShape* shape = new btSphereShape(1);
 
         init(mass, shape, start_pos);
     }
@@ -21,15 +26,17 @@ struct physics_body
     {
         vec3f half_extents = full_dimensions/2.f;
 
-        btCollisionShape* shape = new btBoxShape(btVector3(half_extents.x(), half_extents.y(), half_extents.z()));
+        btConvexShape* shape = new btBoxShape(btVector3(half_extents.x(), half_extents.y(), half_extents.z()));
 
         init(mass, shape, start_pos);
     }
 
-    void init(float mass, btCollisionShape* shape, vec3f start_pos = {0,0,0})
+    void init(float mass, btConvexShape* shape_3d, vec3f start_pos = {0,0,0})
     {
         btDefaultMotionState* fallMotionState =
                 new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1), btVector3(start_pos.x(), start_pos.y(), start_pos.z())));
+
+        btConvexShape* shape = new btConvex2dShape(shape_3d);
 
         btVector3 fallInertia(0, 0, 0);
         shape->calculateLocalInertia(mass, fallInertia);
@@ -37,7 +44,7 @@ struct physics_body
         btRigidBody::btRigidBodyConstructionInfo fallRigidBodyCI(mass, fallMotionState, shape, fallInertia);
 
         fallRigidBodyCI.m_restitution = 0.5f;
-        //fallRigidBodyCI.m_friction = 1.5f;
+        fallRigidBodyCI.m_friction = 0.1f;
 
         body = new btRigidBody(fallRigidBodyCI);
 
@@ -59,6 +66,11 @@ struct physics_body
         circle.setPosition(pos.getX(), pos.getY());
 
         win.draw(circle);
+    }
+
+    void add(btDynamicsWorld* world)
+    {
+        world->addRigidBody(body);
     }
 };
 
@@ -90,12 +102,28 @@ struct physics_rigidbodies
 
     btDiscreteDynamicsWorld* dynamicsWorld;
 
+    void make_2d(btCollisionDispatcher* dispatcher)
+    {
+        auto pdsolver = new btMinkowskiPenetrationDepthSolver();
+        auto simplex = new btVoronoiSimplexSolver();
+        auto convexalgo2d = new btConvex2dConvex2dAlgorithm::CreateFunc(simplex, pdsolver);
+        auto box2dbox2dalgo = new btBox2dBox2dCollisionAlgorithm::CreateFunc();
+
+        dispatcher->registerCollisionCreateFunc(CONVEX_2D_SHAPE_PROXYTYPE,CONVEX_2D_SHAPE_PROXYTYPE,convexalgo2d);
+        dispatcher->registerCollisionCreateFunc(BOX_2D_SHAPE_PROXYTYPE,CONVEX_2D_SHAPE_PROXYTYPE,convexalgo2d);
+        dispatcher->registerCollisionCreateFunc(CONVEX_2D_SHAPE_PROXYTYPE,BOX_2D_SHAPE_PROXYTYPE,convexalgo2d);
+        dispatcher->registerCollisionCreateFunc(BOX_2D_SHAPE_PROXYTYPE,BOX_2D_SHAPE_PROXYTYPE,convexalgo2d);
+    }
+
     void init()
     {
+
         btBroadphaseInterface* broadphase = new btDbvtBroadphase();
 
         btDefaultCollisionConfiguration* collisionConfiguration = new btDefaultCollisionConfiguration();
         btCollisionDispatcher* dispatcher = new btCollisionDispatcher(collisionConfiguration);
+
+        make_2d(dispatcher);
 
         btSequentialImpulseConstraintSolver* solver = new btSequentialImpulseConstraintSolver;
 
@@ -110,21 +138,27 @@ struct physics_rigidbodies
                 groundRigidBodyCI(0, groundMotionState, groundShape, btVector3(0, 0, 0));
 
         groundRigidBodyCI.m_restitution = 0.5f;
+        groundRigidBodyCI.m_friction = 0.1f;
 
         btRigidBody* groundRigidBody = new btRigidBody(groundRigidBodyCI);
         dynamicsWorld->addRigidBody(groundRigidBody);
 
         //fall.init_sphere(1.f, {0, 50, 0});
 
-        physics_body* pb1 = make_sphere(1.f, {0, 500, 0});
+        physics_body* pb1 = make_sphere(1.f, {0, 50, 0});
+        physics_body* pb2 = make_sphere(1.f, {1, 60, 0});
 
-        dynamicsWorld->addRigidBody(pb1->body);
+        pb1->add(dynamicsWorld);
+        pb2->add(dynamicsWorld);
     }
 
-    void tick(sf::RenderWindow& win)
+    void tick(double timestep_s)
     {
-        dynamicsWorld->stepSimulation(1 / 60.f, 10);
+        dynamicsWorld->stepSimulation(timestep_s, 10);
+    }
 
+    void render(sf::RenderWindow& win)
+    {
         for(physics_body* pbody : elems)
         {
             /*btTransform trans;

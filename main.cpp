@@ -16,8 +16,11 @@ int main()
 
     vec2i window_size = {1500, 1000};
 
+    sf::ContextSettings settings;
+    settings.antialiasingLevel = 4;
+
     sf::RenderWindow win;
-    win.create(sf::VideoMode(window_size.x(), window_size.y()), "Test");
+    win.create(sf::VideoMode(window_size.x(), window_size.y()), "Test", sf::Style::Default, settings);
 
     cl::context ctx;
 
@@ -165,7 +168,8 @@ int main()
 
         interop->gl_blit_me(0, cqueue);
 
-        physics.tick(win);
+        physics.tick(elapsed_s);
+        physics.render(win);
 
         if(key.isKeyPressed(sf::Keyboard::Escape))
             system("Pause");
