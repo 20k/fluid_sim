@@ -168,7 +168,7 @@ int main()
 
         interop->gl_blit_me(0, cqueue);
 
-        physics.tick(elapsed_s);
+        physics.tick(elapsed_s, fluid_manage.timestep_s);
         physics.render(win);
 
         if(key.isKeyPressed(sf::Keyboard::Escape))

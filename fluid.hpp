@@ -121,7 +121,7 @@ struct fluid_manager
         {
             vec2f centre = {dye_dim.x()/2.f, dye_dim.y()/2.f};
 
-            #define SKY
+            //#define SKY
             #ifdef SKY
             vec3f dye_val = {0.3, 0.3, 0.7 + randf_s(0, 0.3)};
             #else
@@ -421,12 +421,13 @@ struct fluid_manager
         phys_counter++;
     }
 
+    float timestep_s = 4600.f/1000.f;
+
     ///future improvement: When decoupling dye/visuals from velocity
     ///keep underlying velocity field at full res, try just performing jacobi at lower res
     ///that way we get full res advection etc, which should maintain most of the quality
     void tick(cl::cl_gl_interop_texture* interop, cl::buffer_manager& buffers, cl::program& program, cl::command_queue& cqueue)
     {
-        float timestep_s = 4600.f/1000.f;
 
         cl::buffer* v1 = get_velocity_buf(0);
         cl::buffer* v2 = get_velocity_buf(1);

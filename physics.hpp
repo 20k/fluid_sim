@@ -15,6 +15,7 @@ struct physics_body
     std::vector<vec2f> vertices;
     vec2f local_centre;
 
+    float current_mass = 1.f;
     btRigidBody* body = nullptr;
     btConvexShape* saved_shape = nullptr;
 
@@ -40,7 +41,9 @@ struct physics_body
     {
         if(!last_read.bad())
         {
-            unprocessed_fluid_velocity += last_read[0];
+            unprocessed_fluid_velocity = last_read[0];
+
+            unprocessed_fluid_velocity.y() = -unprocessed_fluid_velocity.y();
 
             last_read.del();
         }
@@ -52,7 +55,7 @@ struct physics_body
 
         vec2i ipos = {pos.x(), pos.y()};
 
-        last_read = velocity_buffer->async_read<vec2f>(cqueue, ipos);
+        last_read = velocity_buffer->async_read<vec2f>(cqueue, ipos, {1, 1}, true);
     }
 
     std::vector<vec2f> decompose_centrally(const std::vector<vec2f>& vert_in)
@@ -147,6 +150,8 @@ struct physics_body
 
         calculate_center();
 
+        current_mass = mass;
+
         //body->setRestitution(1.f);
     }
 
@@ -159,6 +164,36 @@ struct physics_body
         btQuaternion rotation = trans.getRotation();
 
         return {pos.getX(), pos.getY()};
+    }
+
+    vec2f get_velocity()
+    {
+        btVector3 velocity = body->getLinearVelocity();
+
+        return {velocity.x(), velocity.y()};
+    }
+
+    void tick(double timestep_s, double fluid_timestep_s)
+    {
+        if(timestep_s < 0.000001)
+            return;
+
+        vec2f target = unprocessed_fluid_velocity * fluid_timestep_s / timestep_s;
+
+        //body->applyImpulse(btVector3(to_add.x(), to_add.y(), 0), btVector3(0,0,0));
+
+        vec2f current_velocity = get_velocity();
+
+        ///YEAH THIS ISN'T RIGHT
+        vec2f destination_velocity = target;//(target + current_velocity)/2.f;
+
+        vec2f velocity_diff = (destination_velocity - current_velocity) * current_mass;
+
+        body->applyCentralImpulse(btVector3(velocity_diff.x(),velocity_diff.y(), 0));
+
+        //printf("%f %f\n", velocity.x(), velocity.y());
+
+        unprocessed_fluid_velocity = {0,0};
     }
 
     void render(sf::RenderWindow& win)
@@ -267,15 +302,20 @@ struct physics_rigidbodies
 
         //fall.init_sphere(1.f, {0, 50, 0});
 
-        physics_body* pb1 = make_sphere(1.f, 5.f, {50, 50, 0});
-        physics_body* pb2 = make_sphere(1.f, 5.f, {51, 60, 0});
+        physics_body* pb1 = make_sphere(1.f, 5.f, {500, 50, 0});
+        physics_body* pb2 = make_sphere(1.f, 5.f, {501, 60, 0});
 
         pb1->add(dynamicsWorld);
         pb2->add(dynamicsWorld);
     }
 
-    void tick(double timestep_s)
+    void tick(double timestep_s, double fluid_timestep_s)
     {
+        for(physics_body* pbody : elems)
+        {
+            pbody->tick(timestep_s, fluid_timestep_s);
+        }
+
         dynamicsWorld->stepSimulation(timestep_s, 10);
     }
 
