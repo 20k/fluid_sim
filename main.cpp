@@ -5,6 +5,7 @@
 #include <SFML/Graphics.hpp>
 #include "fluid.hpp"
 #include "lighting.hpp"
+#include "physics.hpp"
 
 int main()
 {
@@ -93,6 +94,12 @@ int main()
 
     lighting_manager lighting_manage;
     lighting_manage.init(ctx, buffer_manage, program, cqueue, screen_dim);
+
+    physics_rigidbodies physics;
+
+    physics.init();
+
+    physics.tick(win);
 
     sf::Clock clk;
     sf::Keyboard key;
