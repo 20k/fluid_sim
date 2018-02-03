@@ -16,12 +16,11 @@ struct physics_body
 
 struct physics_rigidbodies
 {
+    btDiscreteDynamicsWorld* dynamicsWorld;
+
+    btRigidBody* fallRigidBody = nullptr;
+
     void init()
-    {
-
-    }
-
-    void tick(sf::RenderWindow& win)
     {
         btBroadphaseInterface* broadphase = new btDbvtBroadphase();
 
@@ -30,13 +29,10 @@ struct physics_rigidbodies
 
         btSequentialImpulseConstraintSolver* solver = new btSequentialImpulseConstraintSolver;
 
-        btDiscreteDynamicsWorld* dynamicsWorld = new btDiscreteDynamicsWorld(dispatcher, broadphase, solver, collisionConfiguration);
+        dynamicsWorld = new btDiscreteDynamicsWorld(dispatcher, broadphase, solver, collisionConfiguration);
 
-        dynamicsWorld->setGravity(btVector3(0, -10, 0));
-
-
+        dynamicsWorld->setGravity(btVector3(0, -9.8, 0));
         btCollisionShape* groundShape = new btStaticPlaneShape(btVector3(0, 1, 0), 1);
-
         btCollisionShape* fallShape = new btSphereShape(1);
 
 
@@ -53,10 +49,12 @@ struct physics_rigidbodies
         btVector3 fallInertia(0, 0, 0);
         fallShape->calculateLocalInertia(mass, fallInertia);
         btRigidBody::btRigidBodyConstructionInfo fallRigidBodyCI(mass, fallMotionState, fallShape, fallInertia);
-        btRigidBody* fallRigidBody = new btRigidBody(fallRigidBodyCI);
+        fallRigidBody = new btRigidBody(fallRigidBodyCI);
         dynamicsWorld->addRigidBody(fallRigidBody);
+    }
 
-
+    void tick(sf::RenderWindow& win)
+    {
         for (int i = 0; i < 300; i++) {
                 dynamicsWorld->stepSimulation(1 / 60.f, 10);
 
@@ -65,8 +63,11 @@ struct physics_rigidbodies
 
                 std::cout << "sphere height: " << trans.getOrigin().getY() << std::endl;
         }
+    }
 
-        dynamicsWorld->removeRigidBody(fallRigidBody);
+    ~physics_rigidbodies()
+    {
+        /*dynamicsWorld->removeRigidBody(fallRigidBody);
         delete fallRigidBody->getMotionState();
         delete fallRigidBody;
 
@@ -84,8 +85,7 @@ struct physics_rigidbodies
         delete solver;
         delete collisionConfiguration;
         delete dispatcher;
-        delete broadphase;
-
+        delete broadphase;*/
     }
 };
 
