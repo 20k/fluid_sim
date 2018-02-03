@@ -178,9 +178,14 @@ int main()
         win.display();
         win.clear();
 
+        physics.process_gpu_reads();
+
         ///TODO:
         ///should do one frame ahead shenanigans
         cqueue.block();
+
+        physics.issue_gpu_reads(cqueue, fluid_manage.get_velocity_buf(0));
+
     }
 
     return 0;

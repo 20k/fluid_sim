@@ -1,3 +1,5 @@
+#pragma OPENCL EXTENSION cl_khr_gl_event : enable
+
 __kernel
 void fluid_test(__write_only image2d_t screen, __read_only image2d_t test)
 {

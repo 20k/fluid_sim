@@ -13,9 +13,47 @@
 struct physics_body
 {
     std::vector<vec2f> vertices;
+    vec2f local_centre;
 
     btRigidBody* body = nullptr;
     btConvexShape* saved_shape = nullptr;
+
+    vec2f unprocessed_fluid_velocity = {0,0};
+
+    void calculate_center()
+    {
+        assert(vertices.size() > 0);
+
+        vec2f centre = {0,0};
+
+        for(vec2f pos : vertices)
+        {
+            centre += pos;
+        }
+
+        local_centre = centre / vertices.size();
+    }
+
+    cl::read_event<vec2f> last_read;
+
+    void process_read()
+    {
+        if(!last_read.bad())
+        {
+            unprocessed_fluid_velocity += last_read[0];
+
+            last_read.del();
+        }
+    }
+
+    void issue_read(cl::command_queue& cqueue, cl::buffer* velocity_buffer)
+    {
+        vec2f pos = get_pos();
+
+        vec2i ipos = {pos.x(), pos.y()};
+
+        last_read = velocity_buffer->async_read<vec2f>(cqueue, ipos);
+    }
 
     std::vector<vec2f> decompose_centrally(const std::vector<vec2f>& vert_in)
     {
@@ -107,7 +145,20 @@ struct physics_body
 
         saved_shape = shape;
 
+        calculate_center();
+
         //body->setRestitution(1.f);
+    }
+
+    vec2f get_pos()
+    {
+        btTransform trans;
+        body->getMotionState()->getWorldTransform(trans);
+
+        btVector3 pos = trans.getOrigin();
+        btQuaternion rotation = trans.getRotation();
+
+        return {pos.getX(), pos.getY()};
     }
 
     void render(sf::RenderWindow& win)
@@ -189,7 +240,6 @@ struct physics_rigidbodies
 
     void init()
     {
-
         btBroadphaseInterface* broadphase = new btDbvtBroadphase();
 
         btDefaultCollisionConfiguration* collisionConfiguration = new btDefaultCollisionConfiguration();
@@ -217,8 +267,8 @@ struct physics_rigidbodies
 
         //fall.init_sphere(1.f, {0, 50, 0});
 
-        physics_body* pb1 = make_sphere(1.f, 5.f, {0, 50, 0});
-        physics_body* pb2 = make_sphere(1.f, 5.f, {1, 60, 0});
+        physics_body* pb1 = make_sphere(1.f, 5.f, {50, 50, 0});
+        physics_body* pb2 = make_sphere(1.f, 5.f, {51, 60, 0});
 
         pb1->add(dynamicsWorld);
         pb2->add(dynamicsWorld);
@@ -239,6 +289,31 @@ struct physics_rigidbodies
             std::cout << "sphere height: " << trans.getOrigin().getY() << std::endl;*/
 
             pbody->render(win);
+        }
+    }
+
+    void process_gpu_reads()
+    {
+        std::vector<cl::event*> events;
+
+        for(physics_body* pbody : elems)
+        {
+            events.push_back(&pbody->last_read);
+        }
+
+        cl::wait_for(events);
+
+        for(physics_body* pbody : elems)
+        {
+            pbody->process_read();
+        }
+    }
+
+    void issue_gpu_reads(cl::command_queue& cqueue, cl::buffer* velocity)
+    {
+        for(physics_body* pbody : elems)
+        {
+            pbody->issue_read(cqueue, velocity);
         }
     }
 
