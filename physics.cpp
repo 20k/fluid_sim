@@ -438,7 +438,7 @@ void on_read_complete(cl_event event, cl_int event_command_exec_status, void* us
     delete rdata;
 }
 
-/*void on_write_complete(cl_event event, cl_int event_command_exec_status, void* user_data)
+void on_write_complete(cl_event event, cl_int event_command_exec_status, void* user_data)
 {
     completion_data* dat = (completion_data*)user_data;
 
@@ -469,7 +469,7 @@ void on_read_complete(cl_event event, cl_int event_command_exec_status, void* us
     assert(evt.invalid == false);
 
     delete dat;
-}*/
+}
 
 void phys_cpu::physics_rigidbodies::issue_gpu_reads(cl::command_queue& cqueue, cl::program& program, cl::buffer* velocity)
 {
@@ -518,6 +518,8 @@ void phys_cpu::physics_rigidbodies::issue_gpu_reads(cl::command_queue& cqueue, c
 
     cl::write_event<vec2f> wrdata = to_read_positions->async_write(cqueue, positions);
 
+    #define SUPER_ASYNC
+    #ifndef SUPER_ASYNC
     cl::args args;
     args.push_back(velocity);
     args.push_back(to_read_positions);
@@ -534,6 +536,11 @@ void phys_cpu::physics_rigidbodies::issue_gpu_reads(cl::command_queue& cqueue, c
 
     read_completion_data* rdata = new read_completion_data{this, read.data};
     read.set_completion_callback(on_read_complete, rdata);
+    #else
+
+    wrdata.set_completion_callback(on_write_complete, dat);
+
+    #endif
 
 
     //assert(kernel_evt.invalid == false);
