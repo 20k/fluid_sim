@@ -1257,17 +1257,6 @@ void keep_upright_and_fluid(__global Body* gBodies, int max_bodies, __read_only 
 
     float2 dim = convert_float2(get_image_dim(fluid_velocity));
 
-
-    /*vec2f current_velocity = get_velocity();
-
-    ///YEAH THIS ISN'T RIGHT
-    vec2f destination_velocity = target;//(target + current_velocity)/2.f;
-
-    vec2f velocity_diff = (destination_velocity - current_velocity) * current_mass;
-
-    body->applyCentralImpulse(btVector3(velocity_diff.x(),velocity_diff.y(), 0));
-    */
-
     sampler_t sam = CLK_NORMALIZED_COORDS_FALSE |
                     CLK_ADDRESS_CLAMP_TO_EDGE |
                     CLK_FILTER_LINEAR;
@@ -1280,8 +1269,6 @@ void keep_upright_and_fluid(__global Body* gBodies, int max_bodies, __read_only 
     //gBodies[idx].m_linVel.z = -gBodies[idx].m_pos.z/2.f;
 
     //gBodies[idx].m_restituitionCoeff = 0.25f;
-
-    //printf("%f \n", gBodies[idx].m_frictionCoeff);
 
     if(any(pos < 0) || any(pos >= dim))
         return;

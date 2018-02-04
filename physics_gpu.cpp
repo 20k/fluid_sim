@@ -195,7 +195,6 @@ void phys_gpu::physics_rigidbodies::init(cl::context& ctx, cl::command_queue& cq
     b3GpuBroadphaseInterface* bp =0;
 
 
-    //#ifdef EHH
     bool useUniformGrid = false;
 
     if (useUniformGrid)
@@ -205,13 +204,8 @@ void phys_gpu::physics_rigidbodies::init(cl::context& ctx, cl::command_queue& cq
     {
         bp = new b3GpuSapBroadphase(m_clData->m_clContext,m_clData->m_clDevice,m_clData->m_clQueue);
     }
-    // #endif // EHH
 
     //bp = new b3GpuParallelLinearBvhBroadphase(m_clData->m_clContext, m_clData->m_clDevice, m_clData->m_clQueue);
-
-    //b3GpuParallelLinearBvh
-
-    //bp = new b3GpuParallelLinearBvh(m_clData->m_clContext, m_clData->m_clDevice, m_clData->m_clQueue);
 
     m_data->m_np = np;
     m_data->m_bp = bp;
@@ -219,9 +213,9 @@ void phys_gpu::physics_rigidbodies::init(cl::context& ctx, cl::command_queue& cq
 
     m_data->m_rigidBodyPipeline = new b3GpuRigidBodyPipeline(m_clData->m_clContext,m_clData->m_clDevice,m_clData->m_clQueue, np, bp,m_data->m_broadphaseDbvt,m_data->m_config);
 
-    //b3Vector3 gravity = b3MakeVector3(0, -9.8, 0);
+    b3Vector3 gravity = b3MakeVector3(0, -9.8, 0);
 
-    //m_data->m_rigidBodyPipeline->setGravity(gravity);
+    m_data->m_rigidBodyPipeline->setGravity(gravity);
 
     m_data->m_rigidBodyPipeline->writeAllInstancesToGpu();
     np->writeAllBodiesToGpu();

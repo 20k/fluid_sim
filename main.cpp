@@ -54,14 +54,17 @@ int main()
     lighting_manager lighting_manage;
     lighting_manage.init(ctx, buffer_manage, program, cqueue, screen_dim);
 
-    #ifdef PHYSICS_CPU
+    bool use_cpu_physics = true;
+
     phys_cpu::physics_rigidbodies physics;
 
-    physics.init();
-    #endif
+    if(use_cpu_physics)
+        physics.init();
 
     phys_gpu::physics_rigidbodies physics_gpu;
-    physics_gpu.init(ctx, phys_queue, program);
+
+    if(!use_cpu_physics)
+        physics_gpu.init(ctx, phys_queue, program);
 
     ///BEGIN HACKY CIRCLE TEXTURE STUFF
     sf::RenderTexture intermediate_tex;
@@ -147,24 +150,28 @@ int main()
 
         fluid_manage.tick(interop, buffer_manage, program, cqueue);
 
-        #ifdef PHYSICS_CPU
-        physics.issue_gpu_reads(readback_queue, fluid_manage.get_velocity_buf(0));
-        #endif
+        if(use_cpu_physics)
+            physics.issue_gpu_reads(readback_queue, fluid_manage.get_velocity_buf(0));
 
         ///for some reason nothing shows up if we render after ticking
         ///dont understand why
-        physics_gpu.render(cqueue, program, interop, circletex);
-        physics_gpu.tick(elapsed_s, fluid_manage.timestep_s, fluid_manage.get_velocity_buf(0), phys_queue, program);
+
+        if(!use_cpu_physics)
+        {
+            physics_gpu.render(cqueue, program, interop, circletex);
+            physics_gpu.tick(elapsed_s, fluid_manage.timestep_s, fluid_manage.get_velocity_buf(0), phys_queue, program);
+        }
 
         //lighting_manage.tick(interop, buffer_manage, program, cqueue, cur_mouse, fluid_manage.dye[fluid_manage.which_dye]);
 
 
         interop->gl_blit_me(0, cqueue);
 
-        #ifdef PHYSICS_CPU
-        physics.tick(elapsed_s, fluid_manage.timestep_s);
-        physics.render(win);
-        #endif // PHYSICS_CPU
+        if(use_cpu_physics)
+        {
+            physics.tick(elapsed_s, fluid_manage.timestep_s);
+            physics.render(win);
+        }
 
         if(key.isKeyPressed(sf::Keyboard::Escape))
             system("Pause");
@@ -177,10 +184,10 @@ int main()
         ///should do one frame ahead shenanigans
         cqueue.block();
 
-        #ifdef PHYSICS_CPU
-        physics.process_gpu_reads();
-        #endif // PHYSICS_CPU
-
+        if(use_cpu_physics)
+        {
+            physics.process_gpu_reads();
+        }
     }
 
     return 0;
