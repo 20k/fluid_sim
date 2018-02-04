@@ -78,7 +78,7 @@ struct physics_rigidbodies
     void render(sf::RenderWindow& win);
 
     void process_gpu_reads();
-    void issue_gpu_reads(cl::command_queue& cqueue, cl::program& program, cl::buffer* velocity);
+    void issue_gpu_reads(cl::command_queue& cqueue, cl::program& program, cl::buffer* velocity, vec2f velocity_scale);
 
     ~physics_rigidbodies();
 };

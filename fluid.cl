@@ -496,6 +496,7 @@ void fluid_fetch_velocities(__read_only image2d_t velocity, __global float2* pos
 
     float2 pos = positions[gid];
 
+    ///its easier to flip this here
     pos.y = dim.y - pos.y;
 
     float4 val = read_imagef(velocity, sam, pos);

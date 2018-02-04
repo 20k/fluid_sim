@@ -389,13 +389,13 @@ void on_write_complete(cl_event event, cl_int event_command_exec_status, void* u
     delete dat;
 }
 
-void phys_cpu::physics_rigidbodies::issue_gpu_reads(cl::command_queue& cqueue, cl::program& program, cl::buffer* velocity)
+void phys_cpu::physics_rigidbodies::issue_gpu_reads(cl::command_queue& cqueue, cl::program& program, cl::buffer* velocity, vec2f velocity_scale)
 {
     std::vector<vec2f> positions;
 
     for(physics_body* pbody : elems)
     {
-        positions.push_back(pbody->get_pos());
+        positions.push_back(pbody->get_pos() / velocity_scale);
     }
 
     int num_positions = positions.size();
