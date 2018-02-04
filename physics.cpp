@@ -187,7 +187,16 @@ void phys_cpu::physics_body::tick(double timestep_s, double fluid_timestep_s)
     if(timestep_s < 0.000001)
         return;
 
-    vec2f target = unprocessed_fluid_velocity * fluid_timestep_s / timestep_s;
+    vec2f vel = unprocessed_fluid_velocity;
+    vel.y() = -vel.y();
+
+    vel = vel * 100.f;
+
+    //std::cout << vel << std::endl;
+
+    //std::cout << vel << std::endl;
+
+    vec2f target = vel * fluid_timestep_s / timestep_s;
 
     //body->applyImpulse(btVector3(to_add.x(), to_add.y(), 0), btVector3(0,0,0));
 
@@ -275,7 +284,7 @@ void phys_cpu::physics_rigidbodies::make_2d(btCollisionDispatcher* dispatcher)
     dispatcher->registerCollisionCreateFunc(BOX_2D_SHAPE_PROXYTYPE,BOX_2D_SHAPE_PROXYTYPE,convexalgo2d);
 }
 
-void phys_cpu::physics_rigidbodies::init()
+void phys_cpu::physics_rigidbodies::init(cl::context& ctx, cl::buffer_manager& buffers)
 {
     btBroadphaseInterface* broadphase = new btDbvtBroadphase();
 
@@ -304,12 +313,20 @@ void phys_cpu::physics_rigidbodies::init()
 
     //fall.init_sphere(1.f, {0, 50, 0});
 
-    for(int i=0; i < 100; i++)
+    for(int i=0; i < 1; i++)
     {
         physics_body* pb1 = make_sphere(1.f, 5.f, {500 + 5 * i, 50, 0});
 
         pb1->add(dynamicsWorld);
     }
+
+    to_read_positions = buffers.fetch<cl::buffer>(ctx, nullptr);
+    positions_out = buffers.fetch<cl::buffer>(ctx, nullptr);
+
+    to_read_positions->alloc_bytes(sizeof(vec2f) * max_physics_bodies);
+    positions_out->alloc_bytes(sizeof(vec2f) * max_physics_bodies);
+    cpu_positions.resize(max_physics_bodies);
+
     //physics_body* pb2 = make_sphere(1.f, 5.f, {501, 60, 0});
 
     //pb2->add(dynamicsWorld);
@@ -340,6 +357,7 @@ void phys_cpu::physics_rigidbodies::render(sf::RenderWindow& win)
 
 void phys_cpu::physics_rigidbodies::process_gpu_reads()
 {
+    #if 0
     std::vector<cl::event*> events;
 
     for(physics_body* pbody : elems)
@@ -357,16 +375,171 @@ void phys_cpu::physics_rigidbodies::process_gpu_reads()
     {
         pbody->process_read();
     }
+    #endif
+
+    int exchange = 1;
+
+    if(data_written.compare_exchange_strong(exchange, 0))
+    {
+        std::cout << "exec\n";
+
+        std::lock_guard<std::mutex> guard(data_lock);
+
+        ///we need to pass this out as a parameter
+        ///between threads
+        int num_bodies = elems.size();
+
+        for(int i=0; i < num_bodies; i++)
+        {
+            physics_body* pbody = elems[i];
+
+            pbody->unprocessed_fluid_velocity = cpu_positions[i];
+
+            std::cout << pbody->unprocessed_fluid_velocity << std::endl;
+
+            cpu_positions[i] = {0,0};
+        }
+    }
 }
 
-void phys_cpu::physics_rigidbodies::issue_gpu_reads(cl::command_queue& cqueue, cl::buffer* velocity)
+struct completion_data
 {
+    phys_cpu::physics_rigidbodies* bodies = nullptr;
+    cl::command_queue* cqueue = nullptr;
+    cl::program* program = nullptr;
+    cl::buffer* velocity = nullptr;
+    cl::buffer* to_read_positions = nullptr;
+    cl::buffer* positions_out = nullptr;
+
+    int num_positions = 0;
+};
+
+struct read_completion_data
+{
+    phys_cpu::physics_rigidbodies* body = nullptr;
+    std::vector<vec2f>* data = nullptr;
+};
+
+void on_read_complete(cl_event event, cl_int event_command_exec_status, void* user_data)
+{
+    //std::vector<vec2f>* data = (std::vector<vec2f>*)user_data;
+
+    read_completion_data* rdata = (read_completion_data*)user_data;
+
+    std::vector<vec2f>* data = rdata->data;
+
+    //std::cout << "read\n" << data->size();
+
+    std::lock_guard<std::mutex> guard(rdata->body->data_lock);
+
+    for(int i=0; i < data->size(); i++)
+    {
+        rdata->body->cpu_positions[i] = (*data)[i];
+    }
+
+    rdata->body->data_written = 1;
+
+    delete rdata;
+}
+
+/*void on_write_complete(cl_event event, cl_int event_command_exec_status, void* user_data)
+{
+    completion_data* dat = (completion_data*)user_data;
+
+    //std::cout << "pre" << std::endl;
+
+    cl::args args;
+    args.push_back(dat->velocity);
+    args.push_back(dat->to_read_positions);
+    args.push_back(dat->num_positions);
+    args.push_back(dat->positions_out);
+
+    //printf("write complete %i\n", dat->num_positions);
+
+    cl::event evt;
+
+    dat->cqueue->exec(*dat->program, "fluid_fetch_velocities", args, {dat->num_positions}, {128}, &evt);
+
+    cl::read_event<vec2f> read = dat->positions_out->async_read<vec2f>(*dat->cqueue, 0, dat->num_positions, false, {&evt});
+
+    //std::cout << "rdata size " << read.data->size() << std::endl;
+
+    read_completion_data* rdata = new read_completion_data{dat->bodies, read.data};
+
+    read.set_completion_callback(on_read_complete, rdata);
+
+    //std::cout << "write\n";
+
+    assert(evt.invalid == false);
+
+    delete dat;
+}*/
+
+void phys_cpu::physics_rigidbodies::issue_gpu_reads(cl::command_queue& cqueue, cl::program& program, cl::buffer* velocity)
+{
+    #if 0
     for(physics_body* pbody : elems)
     {
         pbody->issue_read(cqueue, velocity);
     }
 
     clFlush(cqueue);
+    #endif
+
+    /*{
+        int expected = 1;
+
+        if(data_written.compare_exchange_strong(expected, 0))
+        {
+            int num_positions = elems.size();
+
+            cl::args args;
+            args.push_back(velocity);
+            args.push_back(to_read_positions);
+            args.push_back(num_positions);
+            args.push_back(positions_out);
+
+            cl::event evt;
+            cqueue.exec(program, "fluid_fetch_velocities", args, {num_positions}, {128}, &evt);
+        }
+    }*/
+
+    std::vector<vec2f> positions;
+
+    for(physics_body* pbody : elems)
+    {
+        positions.push_back(pbody->get_pos());
+    }
+
+    int num_positions = positions.size();
+
+    //completion_data* dat = new completion_data{this};
+    completion_data* dat = new completion_data{this, &cqueue, &program, velocity, to_read_positions, positions_out, elems.size()};
+
+    //std::cout << "to_write " << dat->num_positions << std::endl;
+
+    cl::write_event<vec2f> wrdata = to_read_positions->async_write<vec2f>(cqueue, positions);
+    //wrdata.set_completion_callback(on_write_complete, dat);
+
+    cl::args args;
+    args.push_back(velocity);
+    args.push_back(to_read_positions);
+    args.push_back(num_positions);
+    args.push_back(positions_out);
+
+    cl::event kernel_evt;
+
+    cqueue.exec(program, "fluid_fetch_velocities", args, {num_positions}, {128}, &kernel_evt, {&wrdata});
+
+    cl::read_event<vec2f> read = positions_out->async_read<vec2f>(cqueue, 0, dat->num_positions, false, {&kernel_evt});
+
+    read_completion_data* rdata = new read_completion_data{this, read.data};
+    read.set_completion_callback(on_read_complete, rdata);
+
+
+    assert(kernel_evt.invalid == false);
+
+    //std::cout << "queue\n";
 }
 
 phys_cpu::physics_rigidbodies::~physics_rigidbodies()

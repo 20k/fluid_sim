@@ -5,6 +5,8 @@
 #include <vector>
 #include <vec/vec.hpp>
 #include <ocl/ocl.hpp>
+#include <mutex>
+#include <atomic>
 
 namespace sf
 {
@@ -59,7 +61,18 @@ struct physics_rigidbodies
 {
     std::vector<physics_body*> elems;
 
-    void init();
+    std::vector<vec2f> cpu_positions;
+    cl::buffer* to_read_positions = nullptr;
+    cl::buffer* positions_out = nullptr;
+
+    std::atomic_int data_written;
+
+    //volatile int data_written = 0;
+    std::mutex data_lock;
+
+    int max_physics_bodies = 10000;
+
+    void init(cl::context& ctx, cl::buffer_manager& buffers);
 
     physics_body* make_sphere(float mass, float rad, vec3f start_pos = {0,0,0});
     physics_body* make_rectangle(float mass, vec3f full_dimensions, vec3f start_pos = {0,0,0});
@@ -72,7 +85,7 @@ struct physics_rigidbodies
     void render(sf::RenderWindow& win);
 
     void process_gpu_reads();
-    void issue_gpu_reads(cl::command_queue& cqueue, cl::buffer* velocity);
+    void issue_gpu_reads(cl::command_queue& cqueue, cl::program& program, cl::buffer* velocity);
 
     ~physics_rigidbodies();
 };

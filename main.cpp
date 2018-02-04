@@ -59,7 +59,7 @@ int main()
     phys_cpu::physics_rigidbodies physics;
 
     if(use_cpu_physics)
-        physics.init();
+        physics.init(ctx, buffer_manage);
 
     phys_gpu::physics_rigidbodies physics_gpu;
 
@@ -145,13 +145,13 @@ int main()
                 running = false;
         }
 
+        if(use_cpu_physics)
+            physics.issue_gpu_reads(readback_queue, program, fluid_manage.get_velocity_buf(0));
+
         /*cqueue.exec(program, "fluid_test", none, {800, 600}, {16, 16});
         cqueue.block();*/
 
         fluid_manage.tick(interop, buffer_manage, program, cqueue);
-
-        if(use_cpu_physics)
-            physics.issue_gpu_reads(readback_queue, fluid_manage.get_velocity_buf(0));
 
         ///for some reason nothing shows up if we render after ticking
         ///dont understand why

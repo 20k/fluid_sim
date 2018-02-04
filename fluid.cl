@@ -480,6 +480,29 @@ void fluid_advect_particles(__read_only image2d_t velocity, __global struct flui
     particles[gid].pos = new_pos - 0.5f;
 }
 
+__kernel
+void fluid_fetch_velocities(__read_only image2d_t velocity, __global float2* positions, int num_positions, __global float2* out)
+{
+    int gid = get_global_id(0);
+
+    if(gid >= num_positions)
+        return;
+
+    sampler_t sam = CLK_NORMALIZED_COORDS_FALSE |
+                    CLK_ADDRESS_CLAMP_TO_EDGE |
+                    CLK_FILTER_LINEAR;
+
+    int2 dim = get_image_dim(velocity);
+
+    float2 pos = positions[gid];
+
+    pos.y = dim.y - pos.y;
+
+    float4 val = read_imagef(velocity, sam, pos);
+
+    out[gid] = val.xy;
+}
+
 typedef uint uint32_t;
 typedef uchar uint8_t;
 
