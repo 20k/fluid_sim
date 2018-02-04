@@ -99,7 +99,7 @@ int main()
     lighting_manager lighting_manage;
     lighting_manage.init(ctx, buffer_manage, program, cqueue, screen_dim);
 
-    physics_rigidbodies physics;
+    phys_cpu::physics_rigidbodies physics;
 
     physics.init();
 
