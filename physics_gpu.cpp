@@ -3,6 +3,8 @@
 #include <Bullet3Common/b3Quaternion.h>
 #include <Bullet3OpenCL/BroadphaseCollision/b3GpuSapBroadphase.h>
 #include <Bullet3OpenCL/BroadphaseCollision/b3GpuGridBroadphase.h>
+#include <Bullet3OpenCL/BroadphaseCollision/b3GpuParallelLinearBvh.h>
+#include <Bullet3OpenCL/BroadphaseCollision/b3GpuParallelLinearBvhBroadphase.h>
 #include <Bullet3OpenCL/Initialize/b3OpenCLUtils.h>
 
 #include <Bullet3OpenCL/ParallelPrimitives/b3LauncherCL.h>
@@ -178,10 +180,14 @@ void phys_gpu::physics_rigidbodies::init(cl::context& ctx, cl::command_queue& cq
 
     m_data->m_copyTransformsToVBOKernel = copyTransformsToVBOKernel.ckernel;
 
+    printf("pmax %i\n", m_data->m_config.m_maxConvexBodies);
+
+    m_data->m_config.m_maxConvexBodies = 5000;
+
     m_data->m_config.m_maxConvexBodies = b3Max(m_data->m_config.m_maxConvexBodies,gGpuArraySizeX*gGpuArraySizeY*gGpuArraySizeZ+10);
     m_data->m_config.m_maxConvexShapes = m_data->m_config.m_maxConvexBodies;
 
-    int maxPairsPerBody = 2;
+    int maxPairsPerBody = 16;
     m_data->m_config.m_maxBroadphasePairs = maxPairsPerBody*m_data->m_config.m_maxConvexBodies;
     m_data->m_config.m_maxContactCapacity = m_data->m_config.m_maxBroadphasePairs;
 
@@ -189,6 +195,7 @@ void phys_gpu::physics_rigidbodies::init(cl::context& ctx, cl::command_queue& cq
     b3GpuBroadphaseInterface* bp =0;
 
 
+    //#ifdef EHH
     bool useUniformGrid = false;
 
     if (useUniformGrid)
@@ -198,6 +205,13 @@ void phys_gpu::physics_rigidbodies::init(cl::context& ctx, cl::command_queue& cq
     {
         bp = new b3GpuSapBroadphase(m_clData->m_clContext,m_clData->m_clDevice,m_clData->m_clQueue);
     }
+    // #endif // EHH
+
+    //bp = new b3GpuParallelLinearBvhBroadphase(m_clData->m_clContext, m_clData->m_clDevice, m_clData->m_clQueue);
+
+    //b3GpuParallelLinearBvh
+
+    //bp = new b3GpuParallelLinearBvh(m_clData->m_clContext, m_clData->m_clDevice, m_clData->m_clQueue);
 
     m_data->m_np = np;
     m_data->m_bp = bp;
@@ -215,7 +229,7 @@ void phys_gpu::physics_rigidbodies::init(cl::context& ctx, cl::command_queue& cq
 
     int index = 0;
 
-    float radius = 10.f;
+    float radius = 1.f;
 
     /*int colIndex = m_data->m_np->registerSphereShape(radius);
 
@@ -237,7 +251,7 @@ void phys_gpu::physics_rigidbodies::init(cl::context& ctx, cl::command_queue& cq
         vec3f pos = randf<3, float>(0, 900);
         pos.z() = 0;
 
-        make_sphere(1.f, radius, pos);
+        make_sphere(10.f, radius, pos);
         //make_cube(1.f, radius, pos);
     }
 

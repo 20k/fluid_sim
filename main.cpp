@@ -36,6 +36,7 @@ int main()
 
     cl::command_queue cqueue(ctx);
     cl::command_queue readback_queue(ctx); ///erm. Sure. Lets pretend nothing can go wrong with this
+    cl::command_queue phys_queue(ctx);
 
     cl::buffer_manager buffer_manage;
 
@@ -60,7 +61,7 @@ int main()
     #endif
 
     phys_gpu::physics_rigidbodies physics_gpu;
-    physics_gpu.init(ctx, cqueue, program);
+    physics_gpu.init(ctx, phys_queue, program);
 
     ///BEGIN HACKY CIRCLE TEXTURE STUFF
     sf::RenderTexture intermediate_tex;
@@ -153,7 +154,7 @@ int main()
         ///for some reason nothing shows up if we render after ticking
         ///dont understand why
         physics_gpu.render(cqueue, program, interop, circletex);
-        physics_gpu.tick(elapsed_s, fluid_manage.timestep_s, fluid_manage.get_velocity_buf(0), cqueue, program);
+        physics_gpu.tick(elapsed_s, fluid_manage.timestep_s, fluid_manage.get_velocity_buf(0), phys_queue, program);
 
         //lighting_manage.tick(interop, buffer_manage, program, cqueue, cur_mouse, fluid_manage.dye[fluid_manage.which_dye]);
 

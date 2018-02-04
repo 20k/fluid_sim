@@ -161,6 +161,7 @@ struct fluid_manager
         w_of->alloc_img(cqueue, noise_data, velocity_dim, CL_RG, CL_FLOAT);
         upscaled_advected_velocity->alloc_img(cqueue, noise_data, wavelet_dim, CL_RG, CL_FLOAT);
 
+        cpu_particles.reserve(20000);
         for(int i=0; i < 20000; i++)
         {
             vec2f pos = randv<2, float>(0, 600);
