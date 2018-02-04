@@ -35,13 +35,6 @@ struct physics_body
 
     void calculate_center();
 
-    cl::read_event<vec2f> last_read;
-
-    //std::vector<cl::read_event<vec2f>> unfinished_reads;
-
-    void process_read();
-    void issue_read(cl::command_queue& cqueue, cl::buffer* velocity_buffer);
-
     std::vector<vec2f> decompose_centrally(const std::vector<vec2f>& vert_in);
 
     void init_sphere(float mass, float rad, vec3f start_pos = {0,0,0});
