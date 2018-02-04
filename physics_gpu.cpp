@@ -174,8 +174,6 @@ void phys_gpu::physics_rigidbodies::init(cl::context& ctx, cl::command_queue& cq
     m_clData->m_clInitialized = true;
     m_clData->m_clDeviceName = ctx.device_name.c_str();
 
-    int errNum = 0;
-
     cl::kernel copyTransformsToVBOKernel(prog, "copyTransformsToVBOKernel");
 
     m_data->m_copyTransformsToVBOKernel = copyTransformsToVBOKernel.ckernel;
@@ -221,8 +219,6 @@ void phys_gpu::physics_rigidbodies::init(cl::context& ctx, cl::command_queue& cq
     np->writeAllBodiesToGpu();
     bp->writeAabbsToGpu();
 
-    int index = 0;
-
     float radius = 1.f;
 
     /*int colIndex = m_data->m_np->registerSphereShape(radius);
@@ -258,7 +254,7 @@ void phys_gpu::physics_rigidbodies::init(cl::context& ctx, cl::command_queue& cq
     {
         for(int y=0; y < 20; y++)
         {
-            float mult = 20.f;
+            //float mult = 20.f;
 
             //make_cube(0.f, {x*mult, 0, y*mult}, {mult, mult, mult}, index);
         }

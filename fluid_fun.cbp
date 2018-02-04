@@ -59,6 +59,7 @@
 		<Compiler>
 			<Add option="-Wall" />
 			<Add option="-fexceptions" />
+			<Add option="-Wno-narrowing" />
 			<Add directory="C:/Users/James/Desktop/projects/fluid_fun/deps" />
 		</Compiler>
 		<Linker>

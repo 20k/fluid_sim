@@ -20,7 +20,7 @@ void phys_cpu::physics_body::calculate_center()
         centre += pos;
     }
 
-    local_centre = centre / vertices.size();
+    local_centre = centre / (float)vertices.size();
 }
 
 std::vector<vec2f> phys_cpu::physics_body::decompose_centrally(const std::vector<vec2f>& vert_in)
@@ -34,7 +34,7 @@ std::vector<vec2f> phys_cpu::physics_body::decompose_centrally(const std::vector
         centre += pos;
     }
 
-    centre = centre / vert_in.size();
+    centre = centre / (float)vert_in.size();
 
     std::vector<vec2f> decomp;
 
@@ -126,7 +126,7 @@ vec2f phys_cpu::physics_body::get_pos()
     body->getMotionState()->getWorldTransform(trans);
 
     btVector3 pos = trans.getOrigin();
-    btQuaternion rotation = trans.getRotation();
+    //btQuaternion rotation = trans.getRotation();
 
     return {pos.getX(), pos.getY()};
 }
@@ -146,7 +146,7 @@ void phys_cpu::physics_body::tick(double timestep_s, double fluid_timestep_s)
     vec2f vel = unprocessed_fluid_velocity;
     vel.y() = -vel.y();
 
-    vec2f target = vel * fluid_timestep_s / timestep_s;
+    vec2f target = vel * (float)(fluid_timestep_s / timestep_s);
 
     //body->applyImpulse(btVector3(to_add.x(), to_add.y(), 0), btVector3(0,0,0));
 
@@ -168,11 +168,11 @@ void phys_cpu::physics_body::render(sf::RenderWindow& win)
     body->getMotionState()->getWorldTransform(trans);
 
     btVector3 pos = trans.getOrigin();
-    btQuaternion rotation = trans.getRotation();
+    //btQuaternion rotation = trans.getRotation();
 
     std::vector<sf::Vertex> verts;
 
-    for(int i=0; i < vertices.size(); i++)
+    for(int i=0; i < (int)vertices.size(); i++)
     {
         vec2f local_pos = vertices[i];
         vec2f global_pos = local_pos + (vec2f) {pos.getX(), pos.getY()};

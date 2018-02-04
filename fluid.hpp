@@ -98,7 +98,7 @@ struct fluid_manager
         for(int y=0; y < velocity_dim.y(); y++)
         for(int x=0; x < velocity_dim.x(); x++)
         {
-            vec2f centre = {velocity_dim.x()/2.f, velocity_dim.y()/2.f};
+            //vec2f centre = {velocity_dim.x()/2.f, velocity_dim.y()/2.f};
 
             vec2f fluid_val = randv<2, float>(-0.2f, 0.2f);
 
@@ -165,7 +165,7 @@ struct fluid_manager
         for(int i=0; i < 20000; i++)
         {
             vec2f pos = randv<2, float>(0, 600);
-            vec2f pos2 = randv<2, float>(600, 1000);
+            //vec2f pos2 = randv<2, float>(600, 1000);
 
             cpu_particles.push_back({pos});
 
@@ -352,7 +352,7 @@ struct fluid_manager
         interop->acquire(cqueue);
 
         cl::buffer* v1 = get_velocity_buf(0);
-        cl::buffer* v2 = get_velocity_buf(1);
+        //cl::buffer* v2 = get_velocity_buf(1);
 
         int num_particles = cpu_physics_particles.size();
 
