@@ -91,7 +91,9 @@ int main()
     vec2f last_mouse = {0,0};
     vec2f cur_mouse = {0,0};
 
-    while(win.isOpen())
+    bool running = true;
+
+    while(running)
     {
         sf::Event event;
 
@@ -136,7 +138,7 @@ int main()
         while(win.pollEvent(event))
         {
             if(event.type == sf::Event::Closed)
-                win.close();
+                running = false;
         }
 
         /*cqueue.exec(program, "fluid_test", none, {800, 600}, {16, 16});
@@ -151,10 +153,9 @@ int main()
         ///for some reason nothing shows up if we render after ticking
         ///dont understand why
         physics_gpu.render(cqueue, program, interop, circletex);
-        physics_gpu.tick(elapsed_s, fluid_manage.timestep_s, fluid_manage.get_velocity_buf(0));
+        physics_gpu.tick(elapsed_s, fluid_manage.timestep_s, fluid_manage.get_velocity_buf(0), cqueue, program);
 
         //lighting_manage.tick(interop, buffer_manage, program, cqueue, cur_mouse, fluid_manage.dye[fluid_manage.which_dye]);
-
 
 
         interop->gl_blit_me(0, cqueue);

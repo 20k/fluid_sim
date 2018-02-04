@@ -1247,4 +1247,53 @@ void hacky_render(__read_only image2d_t tex, __write_only image2d_t screen, __gl
     write_imagef(screen, offset, convert_float4(val) / 255.f);
 }
 
+__kernel
+void keep_upright_and_fluid(__global Body* gBodies, int max_bodies, __read_only image2d_t fluid_velocity, float timestep_s, float frame_timestep_s)
+{
+    int idx = get_global_id(0);
+
+    if(idx >= max_bodies)
+        return;
+
+    return;
+
+    float2 dim = convert_float2(get_image_dim(fluid_velocity));
+
+
+    /*vec2f current_velocity = get_velocity();
+
+    ///YEAH THIS ISN'T RIGHT
+    vec2f destination_velocity = target;//(target + current_velocity)/2.f;
+
+    vec2f velocity_diff = (destination_velocity - current_velocity) * current_mass;
+
+    body->applyCentralImpulse(btVector3(velocity_diff.x(),velocity_diff.y(), 0));
+    */
+
+    sampler_t sam = CLK_NORMALIZED_COORDS_FALSE |
+                    CLK_ADDRESS_CLAMP_TO_EDGE |
+                    CLK_FILTER_LINEAR;
+
+    float2 pos = gBodies[idx].m_pos.xy;
+
+    //gBodies[idx].m_pos.z = 0;
+    //gBodies[idx].m_linVel.z = 0;
+
+    //gBodies[idx].m_linVel.z = -gBodies[idx].m_pos.z/2.f;
+
+    //gBodies[idx].m_restituitionCoeff = 0.25f;
+
+    //printf("%f \n", gBodies[idx].m_frictionCoeff);
+
+    if(any(pos < 0) || any(pos >= dim))
+        return;
+
+    float2 current_velocity = gBodies[idx].m_linVel.xy;
+    float2 destination_velocity = read_imagef(fluid_velocity, sam, pos).xy * timestep_s;
+
+    float2 velocity_diff = (destination_velocity - current_velocity) * 0.01f;// * mass
+
+    gBodies[idx].m_linVel.xy += velocity_diff;
+}
+
 ///END OF OPENCL BULLET STUFF

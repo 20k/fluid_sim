@@ -129,14 +129,14 @@ void phys_gpu::physics_rigidbodies::make_cube(float mass, vec3f half_extents, ve
 
     int colIndex = m_data->m_np->registerConvexHullShape(cube_vertices, strideInBytes, numVertices, scaling);
 
-    make_obj(mass, half_extents, colIndex, start_pos);
+    make_obj(mass, colIndex, start_pos);
 }
 
 void phys_gpu::physics_rigidbodies::make_sphere(float mass, float radius, vec3f start_pos)
 {
     int colIndex = m_data->m_np->registerSphereShape(radius);
 
-    make_obj(mass, radius, colIndex, start_pos);
+    make_obj(mass, colIndex, start_pos);
 }
 
 /*void make_plane(float mass, vec3f pos, float plane_constant, vec3f normal, int& index)
@@ -147,15 +147,15 @@ void phys_gpu::physics_rigidbodies::make_sphere(float mass, float radius, vec3f 
     make_obj(0.f, pos, plane_constant, index, colIndex);
 }*/
 
-void phys_gpu::physics_rigidbodies::make_obj(float mass, vec3f half_extents, int colIndex, vec3f start_pos)
+void phys_gpu::physics_rigidbodies::make_obj(float mass, int colIndex, vec3f start_pos)
 {
     b3Vector3 position = b3MakeVector3(start_pos.x(), start_pos.y(), start_pos.z());
 
     b3Quaternion orn(0,0,0,1);
 
-    b3Vector4 scaling = b3MakeVector4(half_extents.x(), half_extents.y(), half_extents.z(), 1.f);
-
     int pid = m_data->m_rigidBodyPipeline->registerPhysicsInstance(mass, position, orn, colIndex, -1, false);
+
+    index++;
 }
 
 void phys_gpu::physics_rigidbodies::init(cl::context& ctx, cl::command_queue& cqueue, cl::program& prog)
@@ -205,9 +205,9 @@ void phys_gpu::physics_rigidbodies::init(cl::context& ctx, cl::command_queue& cq
 
     m_data->m_rigidBodyPipeline = new b3GpuRigidBodyPipeline(m_clData->m_clContext,m_clData->m_clDevice,m_clData->m_clQueue, np, bp,m_data->m_broadphaseDbvt,m_data->m_config);
 
-    b3Vector3 gravity = b3MakeVector3(0, -9.8, 0);
+    //b3Vector3 gravity = b3MakeVector3(0, -9.8, 0);
 
-    m_data->m_rigidBodyPipeline->setGravity(gravity);
+    //m_data->m_rigidBodyPipeline->setGravity(gravity);
 
     m_data->m_rigidBodyPipeline->writeAllInstancesToGpu();
     np->writeAllBodiesToGpu();
@@ -234,7 +234,11 @@ void phys_gpu::physics_rigidbodies::init(cl::context& ctx, cl::command_queue& cq
 
         //make_cube(10.f, randf<3, float>(0, 600), radius, index);
 
-        make_cube(1.f, radius, randf<3, float>(0, 600));
+        vec3f pos = randf<3, float>(0, 300);
+        pos.z() = 0;
+
+        make_sphere(1.f, radius, pos);
+        //make_cube(1.f, radius, pos);
     }
 
     //make_plane(0.f, {0, 0, 0}, 1.f, {0, 1, 0}, index);
@@ -252,6 +256,8 @@ void phys_gpu::physics_rigidbodies::init(cl::context& ctx, cl::command_queue& cq
         }
     }
 
+    //make_cube(0.f, {4000.f, 1.f, 4000.f}, {0,0,0});
+
     //make_cube(0.f, {0,0,0}, {4000, 1, 4000}, index);
 
     m_data->m_rigidBodyPipeline->writeAllInstancesToGpu();
@@ -259,9 +265,10 @@ void phys_gpu::physics_rigidbodies::init(cl::context& ctx, cl::command_queue& cq
     bp->writeAabbsToGpu();
 }
 
-void phys_gpu::physics_rigidbodies::tick(double timestep_s, double fluid_timestep_s, cl::buffer* velocity)
+void phys_gpu::physics_rigidbodies::tick(double timestep_s, double fluid_timestep_s, cl::buffer* velocity, cl::command_queue& cqueue, cl::program& program)
 {
-    if(timestep_s < 0.000001f)
+    ///less than 1/10th of a ms
+    if(timestep_s < 1/10000.f)
         return;
 
     int num_objects = m_data->m_rigidBodyPipeline->getNumBodies();
@@ -272,7 +279,24 @@ void phys_gpu::physics_rigidbodies::tick(double timestep_s, double fluid_timeste
         ///this is '''fine''' for the moment, but really i want to implement fixed timesteps
         ///handle substepping manually
         ///and perform interpolation, all on the gpu
-        m_data->m_rigidBodyPipeline->stepSimulation(timestep_s);
+
+        ///TODO: Check that this doesn't stall the pipeline
+        m_data->m_rigidBodyPipeline->stepSimulation(1/60.f);
+
+        /*float timestep = fluid_timestep_s / timestep_s;
+
+        float frame_timestep_s = timestep_s;
+
+        cl_mem buffer = m_data->m_rigidBodyPipeline->getBodyBuffer();
+
+        cl::args args;
+        args.push_back(buffer);
+        args.push_back(num_objects);
+        args.push_back(velocity);
+        args.push_back(timestep);
+        args.push_back(frame_timestep_s);
+
+        cqueue.exec(program, "keep_upright_and_fluid", args, {num_objects}, {128});*/
     }
 }
 
