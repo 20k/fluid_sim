@@ -123,6 +123,9 @@ void phys_cpu::physics_body::init(float mass, btConvexShape* shape_3d, vec3f sta
 
     current_mass = mass;
 
+    body->setLinearFactor(btVector3(1, 1, 0));
+    body->setAngularFactor(btVector3(0, 0, 1));
+
     //body->setRestitution(1.f);
 }
 
@@ -174,14 +177,19 @@ void phys_cpu::physics_body::render(sf::RenderWindow& win)
     body->getMotionState()->getWorldTransform(trans);
 
     btVector3 pos = trans.getOrigin();
-    //btQuaternion rotation = trans.getRotation();
+    btQuaternion rotation = trans.getRotation();
+
+    quat q = convert_from_bullet_quaternion(rotation);
 
     std::vector<sf::Vertex> verts;
 
     for(int i=0; i < (int)vertices.size(); i++)
     {
         vec2f local_pos = vertices[i];
-        vec2f global_pos = local_pos + (vec2f) {pos.getX(), pos.getY()};
+        //vec2f global_pos = local_pos + (vec2f) {pos.getX(), pos.getY()};
+
+        vec3f transformed_local = rot_quat({local_pos.x(), local_pos.y(), 0.f}, q);
+        vec2f global_pos = transformed_local.xy() + (vec2f){pos.getX(), pos.getY()};
 
         sf::Vertex vert;
         vert.position = sf::Vector2f(global_pos.x(), global_pos.y());
@@ -205,7 +213,7 @@ void phys_cpu::physics_body::add(btDynamicsWorld* world)
 
 phys_cpu::physics_body* phys_cpu::physics_rigidbodies::make_sphere(float mass, float rad, vec3f start_pos)
 {
-    physics_body* pbody = new physics_body;
+    physics_body* pbody = new physics_body(dynamicsWorld);
 
     pbody->init_sphere(mass, rad, start_pos);
 
@@ -216,7 +224,7 @@ phys_cpu::physics_body* phys_cpu::physics_rigidbodies::make_sphere(float mass, f
 
 phys_cpu::physics_body* phys_cpu::physics_rigidbodies::make_rectangle(float mass, vec3f half_extents, vec3f start_pos)
 {
-    physics_body* pbody = new physics_body;
+    physics_body* pbody = new physics_body(dynamicsWorld);
 
     pbody->init_rectangle(mass, half_extents, start_pos);
 
@@ -268,12 +276,12 @@ void phys_cpu::physics_rigidbodies::init(cl::context& ctx, cl::buffer_manager& b
     //fall.init_sphere(1.f, {0, 50, 0});
 
     //for(int i=0; i < 509; i++)
-    for(int y=0; y < 100; y++)
-    for(int x=0; x < 10; x++)
+    for(int y=0; y < 31; y++)
+    for(int x=0; x < 31; x++)
     {
         //physics_body* pb1 = make_sphere(1.f, 5.f, {500 + 5 * x, 50 + y * 5, 0});
 
-        physics_body* pb1 = make_rectangle(1.f, 5.f, {500 + 5 * x, 50 + y * 5, 0});
+        physics_body* pb1 = make_rectangle(1.f, 5.f, {500 + 10 * x, 50 + y * 10, 0});
 
         pb1->add(dynamicsWorld);
     }

@@ -33,6 +33,10 @@ struct physics_body
 
     vec2f unprocessed_fluid_velocity = {0,0};
 
+    btDiscreteDynamicsWorld* world = nullptr;
+
+    physics_body(btDiscreteDynamicsWorld* world) : world(world){}
+
     void calculate_center();
 
     std::vector<vec2f> decompose_centrally(const std::vector<vec2f>& vert_in);
