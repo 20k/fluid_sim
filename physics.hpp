@@ -38,7 +38,7 @@ struct physics_body
     std::vector<vec2f> decompose_centrally(const std::vector<vec2f>& vert_in);
 
     void init_sphere(float mass, float rad, vec3f start_pos = {0,0,0});
-    void init_rectangle(float mass, vec3f full_dimensions, vec3f start_pos = {0,0,0});
+    void init_rectangle(float mass, vec3f half_extents, vec3f start_pos = {0,0,0});
     void init(float mass, btConvexShape* shape_3d, vec3f start_pos = {0,0,0});
 
     vec2f get_pos();
@@ -68,7 +68,7 @@ struct physics_rigidbodies
     void init(cl::context& ctx, cl::buffer_manager& buffers);
 
     physics_body* make_sphere(float mass, float rad, vec3f start_pos = {0,0,0});
-    physics_body* make_rectangle(float mass, vec3f full_dimensions, vec3f start_pos = {0,0,0});
+    physics_body* make_rectangle(float mass, vec3f half_extents, vec3f start_pos = {0,0,0});
 
     btDiscreteDynamicsWorld* dynamicsWorld;
 

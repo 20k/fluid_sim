@@ -58,7 +58,7 @@ void phys_cpu::physics_body::init_sphere(float mass, float rad, vec3f start_pos)
 {
     btSphereShape* shape = new btSphereShape(rad);
 
-    sf::CircleShape cshape(shape->getRadius());
+    sf::CircleShape cshape(shape->getRadius(), 10);
     int num_points = cshape.getPointCount();
 
     for(int i=0; i < num_points; i++)
@@ -73,21 +73,27 @@ void phys_cpu::physics_body::init_sphere(float mass, float rad, vec3f start_pos)
     init(mass, shape, start_pos);
 }
 
-void phys_cpu::physics_body::init_rectangle(float mass, vec3f full_dimensions, vec3f start_pos)
+void phys_cpu::physics_body::init_rectangle(float mass, vec3f half_extents, vec3f start_pos)
 {
-    vec3f half_extents = full_dimensions/2.f;
-
     btBox2dShape* shape = new btBox2dShape(btVector3(half_extents.x(), half_extents.y(), half_extents.z()));
 
     int num_vertices = shape->getNumVertices();
+
+    vec2f verts[4];
+    assert(num_vertices == 4);
 
     for(int i=0; i < num_vertices; i++)
     {
         btVector3 out;
         shape->getVertex(i, out);
-
-        vertices.push_back({out.getX(), out.getY()});
+        verts[i] = {out.getX(), out.getY()};
     }
+
+    vertices.push_back(verts[0]);
+    vertices.push_back(verts[1]);
+    vertices.push_back(verts[3]);
+    vertices.push_back(verts[2]);
+
 
     vertices = decompose_centrally(vertices);
 
@@ -208,11 +214,11 @@ phys_cpu::physics_body* phys_cpu::physics_rigidbodies::make_sphere(float mass, f
     return pbody;
 }
 
-phys_cpu::physics_body* phys_cpu::physics_rigidbodies::make_rectangle(float mass, vec3f full_dimensions, vec3f start_pos)
+phys_cpu::physics_body* phys_cpu::physics_rigidbodies::make_rectangle(float mass, vec3f half_extents, vec3f start_pos)
 {
     physics_body* pbody = new physics_body;
 
-    pbody->init_rectangle(mass, full_dimensions, start_pos);
+    pbody->init_rectangle(mass, half_extents, start_pos);
 
     elems.push_back(pbody);
 
@@ -265,7 +271,9 @@ void phys_cpu::physics_rigidbodies::init(cl::context& ctx, cl::buffer_manager& b
     for(int y=0; y < 100; y++)
     for(int x=0; x < 10; x++)
     {
-        physics_body* pb1 = make_sphere(1.f, 5.f, {500 + 5 * x, 50 + y * 5, 0});
+        //physics_body* pb1 = make_sphere(1.f, 5.f, {500 + 5 * x, 50 + y * 5, 0});
+
+        physics_body* pb1 = make_rectangle(1.f, 5.f, {500 + 5 * x, 50 + y * 5, 0});
 
         pb1->add(dynamicsWorld);
     }
