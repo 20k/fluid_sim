@@ -59,7 +59,7 @@ struct fluid_manager
     ///investigate not using jacobi
     ///TODO:
     ///make fluid particles look nice
-    void init(cl::context& ctx, cl::buffer_manager& buffers, cl::program& program, cl::command_queue& cqueue, vec2i vdim, vec2i ddim, vec2i ndim)
+    void init(cl::context& ctx, cl::buffer_manager& buffers, cl::command_queue& cqueue, vec2i vdim, vec2i ddim, vec2i ndim)
     {
         velocity_dim = vdim;
         dye_dim = ddim;
@@ -200,7 +200,7 @@ struct fluid_manager
         w_of_args.push_back(noise);
         w_of_args.push_back(w_of);
 
-        cqueue.exec(program, "wavelet_w_of", w_of_args, velocity_dim, {16, 16});
+        cqueue.exec("wavelet_w_of", w_of_args, velocity_dim, {16, 16});
     }
 
     cl::buffer* get_velocity_buf(int offset)
@@ -223,7 +223,7 @@ struct fluid_manager
         which_pressure = (which_pressure + 1) % 2;
     }
 
-    void velocity_boundary(cl::program& program, cl::command_queue& cqueue)
+    void velocity_boundary(cl::command_queue& cqueue)
     {
         cl::buffer* v1 = get_velocity_buf(0);
 
@@ -234,15 +234,15 @@ struct fluid_manager
         vel_args.push_back(v1);
         vel_args.push_back(scale);
 
-        cqueue.exec(program, "fluid_boundary", vel_args, velocity_dim, {16, 16});
+        cqueue.exec("fluid_boundary", vel_args, velocity_dim, {16, 16});
 
         vel_args.push_back(boundaries);
         vel_args.push_back(physics_particles_boundary);
 
-        cqueue.exec(program, "fluid_boundary_tex", vel_args, velocity_dim, {16, 16});
+        cqueue.exec("fluid_boundary_tex", vel_args, velocity_dim, {16, 16});
     }
 
-    void pressure_boundary(cl::program& program, cl::command_queue& cqueue)
+    void pressure_boundary(cl::command_queue& cqueue)
     {
         cl::buffer* v1 = get_pressure_buf(0);
         //cl::buffer* v2 = get_pressure_buf(1);
@@ -254,15 +254,15 @@ struct fluid_manager
         vel_args.push_back(v1);
         vel_args.push_back(scale);
 
-        cqueue.exec(program, "fluid_boundary", vel_args, velocity_dim, {16, 16});
+        cqueue.exec("fluid_boundary", vel_args, velocity_dim, {16, 16});
 
         vel_args.push_back(boundaries);
         vel_args.push_back(physics_particles_boundary);
 
-        cqueue.exec(program, "fluid_boundary_tex", vel_args, velocity_dim, {16, 16});
+        cqueue.exec("fluid_boundary_tex", vel_args, velocity_dim, {16, 16});
     }
 
-    void advect_quantity_with(cl::buffer* quantity[2], int& which, cl::program& program, cl::command_queue& cqueue, float timestep_s, vec2i dim, cl::buffer* with, bool flip)
+    void advect_quantity_with(cl::buffer* quantity[2], int& which, cl::command_queue& cqueue, float timestep_s, vec2i dim, cl::buffer* with, bool flip)
     {
         cl::buffer* q1 = quantity[which];
         cl::buffer* q2 = quantity[(which + 1) % 2];
@@ -274,13 +274,13 @@ struct fluid_manager
         advect_args.push_back(q2);
         advect_args.push_back(timestep_s);
 
-        cqueue.exec(program, "fluid_advection", advect_args, dim, {16, 16});
+        cqueue.exec("fluid_advection", advect_args, dim, {16, 16});
 
         if(flip)
             which = (which + 1) % 2;
     }
 
-    void apply_force(cl::program& program, cl::command_queue& cqueue, float force, vec2f location, vec2f direction)
+    void apply_force(cl::command_queue& cqueue, float force, vec2f location, vec2f direction)
     {
         cl::buffer* v1 = get_velocity_buf(0);
         //cl::buffer* v2 = get_velocity_buf(1);
@@ -297,13 +297,13 @@ struct fluid_manager
         force_args.push_back(location);
         force_args.push_back(direction);
 
-        cqueue.exec(program, "fluid_apply_force", force_args, velocity_dim, {16, 16});
+        cqueue.exec("fluid_apply_force", force_args, velocity_dim, {16, 16});
 
         //flip_velocity();
-        velocity_boundary(program, cqueue);
+        velocity_boundary(cqueue);
     }
 
-    void write_boundary(cl::program& program, cl::command_queue& cqueue, vec2f location, float angle)
+    void write_boundary(cl::command_queue& cqueue, vec2f location, float angle)
     {
         location = location / velocity_to_display_ratio;
 
@@ -314,10 +314,10 @@ struct fluid_manager
         bound_dim.push_back(location);
         bound_dim.push_back(angle);
 
-        cqueue.exec(program, "fluid_set_boundary", bound_dim, {1}, {1});
+        cqueue.exec("fluid_set_boundary", bound_dim, {1}, {1});
     }
 
-    void handle_particles(cl::cl_gl_interop_texture* interop, cl::program& program, cl::command_queue& cqueue, float timestep_s)
+    void handle_particles(cl::cl_gl_interop_texture* interop, cl::command_queue& cqueue, float timestep_s)
     {
         interop->acquire(cqueue);
 
@@ -334,20 +334,20 @@ struct fluid_manager
         advect_args.push_back(timestep_s);
         advect_args.push_back(scale);
 
-        cqueue.exec(program, "fluid_advect_particles", advect_args, {num_particles}, {128});
+        cqueue.exec("fluid_advect_particles", advect_args, {num_particles}, {128});
 
         cl::args render_args;
         render_args.push_back(fluid_particles);
         render_args.push_back(num_particles);
         render_args.push_back(interop);
 
-        cqueue.exec(program, "fluid_render_particles", render_args, {num_particles}, {128});
+        cqueue.exec("fluid_render_particles", render_args, {num_particles}, {128});
     }
 
     uint32_t fsand_id = 0;
     uint32_t phys_counter = 0;
 
-    void handle_falling_sand(cl::cl_gl_interop_texture* interop, cl::program& program, cl::command_queue& cqueue, float timestep_s)
+    void handle_falling_sand(cl::cl_gl_interop_texture* interop, cl::command_queue& cqueue, float timestep_s)
     {
         interop->acquire(cqueue);
 
@@ -371,7 +371,7 @@ struct fluid_manager
         physics_args.push_back(p2);
         physics_args.push_back(boundaries);
 
-        cqueue.exec(program, "falling_sand_physics", physics_args, {num_particles}, {128});
+        cqueue.exec("falling_sand_physics", physics_args, {num_particles}, {128});
 
         p1->clear_to_zero(cqueue);
 
@@ -390,7 +390,7 @@ struct fluid_manager
 
         vec2f upper = ceil((vec2f){velocity_dim.x(), velocity_dim.y()} / (vec2f){2, 2});
 
-        cqueue.exec(program, "falling_sand_disimpact", disimpact_args, (vec2i){upper.x(), upper.y()}, (vec2i){16, 16});
+        cqueue.exec("falling_sand_disimpact", disimpact_args, (vec2i){upper.x(), upper.y()}, (vec2i){16, 16});
 
         physics_particles_boundary->clear_to_zero(cqueue);
 
@@ -404,7 +404,7 @@ struct fluid_manager
         generate_args.push_back(v1);
         generate_args.push_back(v1);
 
-        cqueue.exec(program, "falling_sand_edge_boundary_condition", generate_args, velocity_dim, {16, 16});
+        cqueue.exec("falling_sand_edge_boundary_condition", generate_args, velocity_dim, {16, 16});
         #endif // PARTICLES_INTERFERE_WITH_FLUID
 
         cl::args render_args;
@@ -412,7 +412,7 @@ struct fluid_manager
         render_args.push_back(num_particles);
         render_args.push_back(interop);
 
-        cqueue.exec(program, "falling_sand_render", render_args, {num_particles}, {128});
+        cqueue.exec("falling_sand_render", render_args, {num_particles}, {128});
 
         //which_physics_tex = (which_physics_tex + 1) % 2;
 
@@ -427,7 +427,7 @@ struct fluid_manager
     ///future improvement: When decoupling dye/visuals from velocity
     ///keep underlying velocity field at full res, try just performing jacobi at lower res
     ///that way we get full res advection etc, which should maintain most of the quality
-    void tick(cl::cl_gl_interop_texture* interop, cl::buffer_manager& buffers, cl::program& program, cl::command_queue& cqueue)
+    void tick(cl::cl_gl_interop_texture* interop, cl::buffer_manager& buffers, cl::command_queue& cqueue)
     {
 
         cl::buffer* v1 = get_velocity_buf(0);
@@ -439,11 +439,11 @@ struct fluid_manager
         advect_args.push_back(v2);
         advect_args.push_back(timestep_s);
 
-        cqueue.exec(program, "fluid_advection", advect_args, velocity_dim, {16, 16});
+        cqueue.exec("fluid_advection", advect_args, velocity_dim, {16, 16});
 
         flip_velocity();
 
-        velocity_boundary(program, cqueue);
+        velocity_boundary(cqueue);
 
         int jacobi_iterations_diff = 10;
 
@@ -471,7 +471,7 @@ struct fluid_manager
             diffuse_args.push_back(alpha);
             diffuse_args.push_back(rbeta);
 
-            cqueue.exec(program, "fluid_jacobi", diffuse_args, velocity_dim, {16, 16});
+            cqueue.exec("fluid_jacobi", diffuse_args, velocity_dim, {16, 16});
 
             flip_velocity();
 
@@ -479,7 +479,7 @@ struct fluid_manager
         }
 
 
-        velocity_boundary(program, cqueue);
+        velocity_boundary(cqueue);
 
         ///so. First we caclculate divergence, as bvector
         ///then we calculate x, which is the pressure, which is blank initially
@@ -491,7 +491,7 @@ struct fluid_manager
         divergence_args.push_back(cv1);
         divergence_args.push_back(divergence);
 
-        cqueue.exec(program, "fluid_divergence", divergence_args, velocity_dim, {16, 16});
+        cqueue.exec("fluid_divergence", divergence_args, velocity_dim, {16, 16});
 
         int pressure_iterations_diff = 20;
 
@@ -514,14 +514,14 @@ struct fluid_manager
             pressure_args.push_back(alpha);
             pressure_args.push_back(rbeta);
 
-            cqueue.exec(program, "fluid_jacobi", pressure_args, velocity_dim, {16, 16});
+            cqueue.exec("fluid_jacobi", pressure_args, velocity_dim, {16, 16});
 
             flip_pressure();
 
             //pressure_boundary(program, cqueue);
         }
 
-        pressure_boundary(program, cqueue);
+        pressure_boundary(cqueue);
 
         cl::buffer* cpressure = get_pressure_buf(0);
         cl::buffer* cur_v1 = get_velocity_buf(0);
@@ -532,11 +532,11 @@ struct fluid_manager
         subtract_args.push_back(cur_v1);
         subtract_args.push_back(cur_v2);
 
-        cqueue.exec(program, "fluid_gradient", subtract_args, velocity_dim, {16, 16});
+        cqueue.exec("fluid_gradient", subtract_args, velocity_dim, {16, 16});
 
         flip_velocity();
 
-        velocity_boundary(program, cqueue);
+        velocity_boundary(cqueue);
 
 
         #ifdef UNSUCCESSFUL_UPSCALE
@@ -548,12 +548,12 @@ struct fluid_manager
         upscale_args.push_back(upscaled_advected_velocity);
         upscale_args.push_back(timestep_s);
 
-        cqueue.exec(program, "wavelet_upscale", upscale_args, wavelet_dim, {16, 16});
+        cqueue.exec("wavelet_upscale", upscale_args, wavelet_dim, {16, 16});
         #endif // UNSUCCESSFUL_UPSCALE
 
         ///the problem is the dye advection is actually affecting the simulation
         ///AKA BAD, REALLY BAD
-        advect_quantity_with(dye, which_dye, program, cqueue, timestep_s, dye_dim, get_velocity_buf(0), true);
+        advect_quantity_with(dye, which_dye, cqueue, timestep_s, dye_dim, get_velocity_buf(0), true);
 
         #ifdef UNSUCCESSFUL_UPSCALE
         advect_quantity_with(dye, which_dye, program, cqueue, timestep_s, dye_dim, upscaled_advected_velocity, false);
@@ -574,10 +574,10 @@ struct fluid_manager
         debug.push_back(interop);
         debug.push_back(boundaries);
 
-        cqueue.exec(program, "fluid_render", debug, dye_dim, {16, 16});
+        cqueue.exec("fluid_render", debug, dye_dim, {16, 16});
 
         //handle_particles(interop, program, cqueue, timestep_s);
-        handle_falling_sand(interop, program, cqueue, timestep_s);
+        handle_falling_sand(interop, cqueue, timestep_s);
     }
 };
 

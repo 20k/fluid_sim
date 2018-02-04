@@ -7,7 +7,7 @@ struct lighting_manager
 
     vec2i saved_dim;
 
-    void init(cl::context& ctx, cl::buffer_manager& buffers, cl::program& program, cl::command_queue& cqueue, vec2i screen_dim)
+    void init(cl::context& ctx, cl::buffer_manager& buffers, cl::command_queue& cqueue, vec2i screen_dim)
     {
         colour = buffers.fetch<cl::buffer>(ctx, nullptr);
 
@@ -26,7 +26,7 @@ struct lighting_manager
         saved_dim = screen_dim;
     }
 
-    void tick(cl::cl_gl_interop_texture* interop, cl::buffer_manager& buffers, cl::program& program, cl::command_queue& cqueue, vec2f mpos, cl::buffer* fluid)
+    void tick(cl::cl_gl_interop_texture* interop, cl::buffer_manager& buffers,cl::command_queue& cqueue, vec2f mpos, cl::buffer* fluid)
     {
         mpos.y() = saved_dim.y() - mpos.y();
 
@@ -41,7 +41,7 @@ struct lighting_manager
         raytrace_args.push_back(fluid);
         raytrace_args.push_back(interop);
 
-        cqueue.exec(program, "lighting_raytrace_point", raytrace_args, {num_tracers}, {128});
+        cqueue.exec("lighting_raytrace_point", raytrace_args, {num_tracers}, {128});
     }
 };
 

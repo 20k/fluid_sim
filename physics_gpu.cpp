@@ -160,7 +160,7 @@ void phys_gpu::physics_rigidbodies::make_obj(float mass, int colIndex, vec3f sta
     index++;
 }
 
-void phys_gpu::physics_rigidbodies::init(cl::context& ctx, cl::command_queue& cqueue, cl::program& prog)
+void phys_gpu::physics_rigidbodies::init(cl::context& ctx, cl::command_queue& cqueue)
 {
     m_clData = new GpuDemoInternalData();
 
@@ -174,9 +174,9 @@ void phys_gpu::physics_rigidbodies::init(cl::context& ctx, cl::command_queue& cq
     m_clData->m_clInitialized = true;
     m_clData->m_clDeviceName = ctx.device_name.c_str();
 
-    cl::kernel copyTransformsToVBOKernel(prog, "copyTransformsToVBOKernel");
+    //cl::kernel copyTransformsToVBOKernel(prog, "copyTransformsToVBOKernel");
 
-    m_data->m_copyTransformsToVBOKernel = copyTransformsToVBOKernel.ckernel;
+    //m_data->m_copyTransformsToVBOKernel = copyTransformsToVBOKernel.ckernel;
 
     printf("pmax %i\n", m_data->m_config.m_maxConvexBodies);
 
@@ -269,7 +269,7 @@ void phys_gpu::physics_rigidbodies::init(cl::context& ctx, cl::command_queue& cq
     bp->writeAabbsToGpu();
 }
 
-void phys_gpu::physics_rigidbodies::tick(double timestep_s, double fluid_timestep_s, cl::buffer* velocity, cl::command_queue& cqueue, cl::program& program)
+void phys_gpu::physics_rigidbodies::tick(double timestep_s, double fluid_timestep_s, cl::buffer* velocity, cl::command_queue& cqueue)
 {
     ///less than 1/10th of a ms
     if(timestep_s < 1/10000.f)
@@ -302,10 +302,10 @@ void phys_gpu::physics_rigidbodies::tick(double timestep_s, double fluid_timeste
     ///perturbing the objects on the gpu seems to cause framerate to tank
     ///to be equivalent to the currently terrible cpu implementation
     ///so: I'm just going to optimise the readback of the cpu impl
-    cqueue.exec(program, "keep_upright_and_fluid", args, {num_objects}, {128});
+    cqueue.exec("keep_upright_and_fluid", args, {num_objects}, {128});
 }
 
-void phys_gpu::physics_rigidbodies::render(cl::command_queue& cqueue, cl::program& program, cl::cl_gl_interop_texture* screen_tex, cl::cl_gl_interop_texture* circle_tex)
+void phys_gpu::physics_rigidbodies::render(cl::command_queue& cqueue, cl::cl_gl_interop_texture* screen_tex, cl::cl_gl_interop_texture* circle_tex)
 {
     screen_tex->acquire(cqueue);
     circle_tex->acquire(cqueue);
@@ -325,7 +325,7 @@ void phys_gpu::physics_rigidbodies::render(cl::command_queue& cqueue, cl::progra
         args.push_back(buffer);
         args.push_back(num_objects);
 
-        cqueue.exec(program, "hacky_render", args, {circle_tex->w * circle_tex->h, num_objects}, {16, 16});
+        cqueue.exec("hacky_render", args, {circle_tex->w * circle_tex->h, num_objects}, {16, 16});
 
         /*npData->m_bodyBufferGPU->copyToHost(*npData->m_bodyBufferCPU);
 

@@ -32,6 +32,8 @@ int main()
     cl::program program(ctx, "fluid.cl");
     program.build_with(ctx, "");
 
+    ctx.register_program(program);
+
     //cl::kernel test_kernel(program, "test_kernel");
 
     cl::command_queue cqueue(ctx);
@@ -48,11 +50,11 @@ int main()
     vec2i screen_dim = {win.getSize().x, win.getSize().y};
 
     fluid_manager fluid_manage;
-    fluid_manage.init(ctx, buffer_manage, program, cqueue, screen_dim, screen_dim, screen_dim*2);
+    fluid_manage.init(ctx, buffer_manage, cqueue, screen_dim, screen_dim, screen_dim*2);
 
 
     lighting_manager lighting_manage;
-    lighting_manage.init(ctx, buffer_manage, program, cqueue, screen_dim);
+    lighting_manage.init(ctx, buffer_manage, cqueue, screen_dim);
 
     bool use_cpu_physics = true;
 
@@ -64,7 +66,7 @@ int main()
     phys_gpu::physics_rigidbodies physics_gpu;
 
     if(!use_cpu_physics)
-        physics_gpu.init(ctx, phys_queue, program);
+        physics_gpu.init(ctx, phys_queue);
 
     ///BEGIN HACKY CIRCLE TEXTURE STUFF
     sf::RenderTexture intermediate_tex;
@@ -116,7 +118,7 @@ int main()
 
         if(mouse.isButtonPressed(sf::Mouse::Left))
         {
-            fluid_manage.apply_force(program, cqueue, 0.1f, cur_mouse, diff);
+            fluid_manage.apply_force( cqueue, 0.1f, cur_mouse, diff);
         }
 
         if(mouse.isButtonPressed(sf::Mouse::Right))
@@ -126,7 +128,7 @@ int main()
             float max_diff = ceil(mdiff.largest_elem());
 
             if(max_diff == 0)
-                fluid_manage.write_boundary(program, cqueue, cur_mouse, 0.f);
+                fluid_manage.write_boundary( cqueue, cur_mouse, 0.f);
             else
             {
                 vec2f step = mdiff / max_diff;
@@ -134,7 +136,7 @@ int main()
 
                 for(int i=0; i < max_diff + 1; i++, start += step)
                 {
-                    fluid_manage.write_boundary(program, cqueue, start, 0.f);
+                    fluid_manage.write_boundary( cqueue, start, 0.f);
                 }
             }
         }
@@ -146,23 +148,23 @@ int main()
         }
 
         if(use_cpu_physics)
-            physics.issue_gpu_reads(cqueue, program, fluid_manage.get_velocity_buf(0), fluid_manage.velocity_to_display_ratio);
+            physics.issue_gpu_reads(cqueue, fluid_manage.get_velocity_buf(0), fluid_manage.velocity_to_display_ratio);
 
-        /*cqueue.exec(program, "fluid_test", none, {800, 600}, {16, 16});
+        /*cqueue.exec( "fluid_test", none, {800, 600}, {16, 16});
         cqueue.block();*/
 
-        fluid_manage.tick(interop, buffer_manage, program, cqueue);
+        fluid_manage.tick(interop, buffer_manage, cqueue);
 
         ///for some reason nothing shows up if we render after ticking
         ///dont understand why
 
         if(!use_cpu_physics)
         {
-            physics_gpu.render(cqueue, program, interop, circletex);
-            physics_gpu.tick(elapsed_s, fluid_manage.timestep_s, fluid_manage.get_velocity_buf(0), phys_queue, program);
+            physics_gpu.render(cqueue, interop, circletex);
+            physics_gpu.tick(elapsed_s, fluid_manage.timestep_s, fluid_manage.get_velocity_buf(0), phys_queue);
         }
 
-        //lighting_manage.tick(interop, buffer_manage, program, cqueue, cur_mouse, fluid_manage.dye[fluid_manage.which_dye]);
+        //lighting_manage.tick(interop, buffer_manage, cqueue, cur_mouse, fluid_manage.dye[fluid_manage.which_dye]);
 
 
         interop->gl_blit_me(0, cqueue);

@@ -332,7 +332,6 @@ struct completion_data
 {
     phys_cpu::physics_rigidbodies* bodies = nullptr;
     cl::command_queue* cqueue = nullptr;
-    cl::program* program = nullptr;
     cl::buffer* velocity = nullptr;
     cl::buffer* to_read_positions = nullptr;
     cl::buffer* positions_out = nullptr;
@@ -378,7 +377,7 @@ void on_write_complete(cl_event event, cl_int event_command_exec_status, void* u
 
     cl::event evt;
 
-    dat->cqueue->exec(*dat->program, "fluid_fetch_velocities", args, {dat->num_positions}, {128}, &evt);
+    dat->cqueue->exec("fluid_fetch_velocities", args, {dat->num_positions}, {128}, &evt);
 
     cl::read_event<vec2f> read = dat->positions_out->async_read<vec2f>(*dat->cqueue, 0, dat->num_positions, false, {&evt});
 
@@ -391,7 +390,7 @@ void on_write_complete(cl_event event, cl_int event_command_exec_status, void* u
     delete dat;
 }
 
-void phys_cpu::physics_rigidbodies::issue_gpu_reads(cl::command_queue& cqueue, cl::program& program, cl::buffer* velocity, vec2f velocity_scale)
+void phys_cpu::physics_rigidbodies::issue_gpu_reads(cl::command_queue& cqueue, cl::buffer* velocity, vec2f velocity_scale)
 {
     std::vector<vec2f> positions;
 
@@ -404,7 +403,7 @@ void phys_cpu::physics_rigidbodies::issue_gpu_reads(cl::command_queue& cqueue, c
 
     cl::write_event<vec2f> wrdata = to_read_positions->async_write(cqueue, positions);
 
-    completion_data* dat = new completion_data{this, &cqueue, &program, velocity, to_read_positions, positions_out, elems.size(), wrdata.data};
+    completion_data* dat = new completion_data{this, &cqueue, velocity, to_read_positions, positions_out, elems.size(), wrdata.data};
 
     #define SUPER_ASYNC
     #ifndef SUPER_ASYNC
@@ -416,7 +415,7 @@ void phys_cpu::physics_rigidbodies::issue_gpu_reads(cl::command_queue& cqueue, c
 
     cl::event kernel_evt;
 
-    cqueue.exec(program, "fluid_fetch_velocities", args, {num_positions}, {128}, &kernel_evt, {&wrdata});
+    cqueue.exec("fluid_fetch_velocities", args, {num_positions}, {128}, &kernel_evt, {&wrdata});
 
     cl::read_event<vec2f> read = positions_out->async_read<vec2f>(cqueue, 0, dat->num_positions, false, {&kernel_evt});
 
