@@ -22,7 +22,7 @@ struct phys_gpu::GpuDemoInternalData
 	cl_command_queue m_clQueue;
 
 	bool m_clInitialized;
-	char*	m_clDeviceName;
+	const char*	m_clDeviceName;
 
 	GpuDemoInternalData()
 	:m_platformId(0),
@@ -170,7 +170,7 @@ void phys_gpu::physics_rigidbodies::init(cl::context& ctx, cl::command_queue& cq
     m_clData->m_clQueue = cqueue.cqueue;
 
     m_clData->m_clInitialized = true;
-    m_clData->m_clDeviceName = "PhonyDevice";
+    m_clData->m_clDeviceName = ctx.device_name.c_str();
 
     int errNum = 0;
 
@@ -181,7 +181,7 @@ void phys_gpu::physics_rigidbodies::init(cl::context& ctx, cl::command_queue& cq
     m_data->m_config.m_maxConvexBodies = b3Max(m_data->m_config.m_maxConvexBodies,gGpuArraySizeX*gGpuArraySizeY*gGpuArraySizeZ+10);
     m_data->m_config.m_maxConvexShapes = m_data->m_config.m_maxConvexBodies;
 
-    int maxPairsPerBody = 16;
+    int maxPairsPerBody = 2;
     m_data->m_config.m_maxBroadphasePairs = maxPairsPerBody*m_data->m_config.m_maxConvexBodies;
     m_data->m_config.m_maxContactCapacity = m_data->m_config.m_maxBroadphasePairs;
 
@@ -189,7 +189,7 @@ void phys_gpu::physics_rigidbodies::init(cl::context& ctx, cl::command_queue& cq
     b3GpuBroadphaseInterface* bp =0;
 
 
-    bool useUniformGrid = true;
+    bool useUniformGrid = false;
 
     if (useUniformGrid)
     {
@@ -215,7 +215,7 @@ void phys_gpu::physics_rigidbodies::init(cl::context& ctx, cl::command_queue& cq
 
     int index = 0;
 
-    float radius = 1.f;
+    float radius = 10.f;
 
     /*int colIndex = m_data->m_np->registerSphereShape(radius);
 
@@ -228,13 +228,13 @@ void phys_gpu::physics_rigidbodies::init(cl::context& ctx, cl::command_queue& cq
         make_obj(1.f, randv<3, float>(0, 600), radius, index, colIndex);
     }*/
 
-    for(int i=0; i < 5000; i++)
+    for(int i=0; i < 500; i++)
     {
         //make_sphere(10.f, randf<3, float>(0, 600), radius/2, index);
 
         //make_cube(10.f, randf<3, float>(0, 600), radius, index);
 
-        vec3f pos = randf<3, float>(0, 300);
+        vec3f pos = randf<3, float>(0, 900);
         pos.z() = 0;
 
         make_sphere(1.f, radius, pos);
@@ -273,31 +273,29 @@ void phys_gpu::physics_rigidbodies::tick(double timestep_s, double fluid_timeste
 
     int num_objects = m_data->m_rigidBodyPipeline->getNumBodies();
 
-    {
-        ///so
-        ///as far as i can tell this does not do fixed timestep substepping
-        ///this is '''fine''' for the moment, but really i want to implement fixed timesteps
-        ///handle substepping manually
-        ///and perform interpolation, all on the gpu
+    ///so
+    ///as far as i can tell this does not do fixed timestep substepping
+    ///this is '''fine''' for the moment, but really i want to implement fixed timesteps
+    ///handle substepping manually
+    ///and perform interpolation, all on the gpu
 
-        ///TODO: Check that this doesn't stall the pipeline
-        m_data->m_rigidBodyPipeline->stepSimulation(1/60.f);
+    ///TODO: Check that this doesn't stall the pipeline
+    m_data->m_rigidBodyPipeline->stepSimulation(timestep_s);
 
-        /*float timestep = fluid_timestep_s / timestep_s;
+    float timestep = fluid_timestep_s / timestep_s;
 
-        float frame_timestep_s = timestep_s;
+    float frame_timestep_s = timestep_s;
 
-        cl_mem buffer = m_data->m_rigidBodyPipeline->getBodyBuffer();
+    cl_mem buffer = m_data->m_rigidBodyPipeline->getBodyBuffer();
 
-        cl::args args;
-        args.push_back(buffer);
-        args.push_back(num_objects);
-        args.push_back(velocity);
-        args.push_back(timestep);
-        args.push_back(frame_timestep_s);
+    cl::args args;
+    args.push_back(buffer);
+    args.push_back(num_objects);
+    args.push_back(velocity);
+    args.push_back(timestep);
+    args.push_back(frame_timestep_s);
 
-        cqueue.exec(program, "keep_upright_and_fluid", args, {num_objects}, {128});*/
-    }
+    cqueue.exec(program, "keep_upright_and_fluid", args, {num_objects}, {128});
 }
 
 void phys_gpu::physics_rigidbodies::render(cl::command_queue& cqueue, cl::program& program, cl::cl_gl_interop_texture* screen_tex, cl::cl_gl_interop_texture* circle_tex)

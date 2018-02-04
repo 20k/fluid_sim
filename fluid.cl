@@ -1255,8 +1255,6 @@ void keep_upright_and_fluid(__global Body* gBodies, int max_bodies, __read_only 
     if(idx >= max_bodies)
         return;
 
-    return;
-
     float2 dim = convert_float2(get_image_dim(fluid_velocity));
 
 
@@ -1291,7 +1289,7 @@ void keep_upright_and_fluid(__global Body* gBodies, int max_bodies, __read_only 
     float2 current_velocity = gBodies[idx].m_linVel.xy;
     float2 destination_velocity = read_imagef(fluid_velocity, sam, pos).xy * timestep_s;
 
-    float2 velocity_diff = (destination_velocity - current_velocity) * 0.01f;// * mass
+    float2 velocity_diff = (destination_velocity - current_velocity) * 0.1f;// * mass
 
     gBodies[idx].m_linVel.xy += velocity_diff;
 }
