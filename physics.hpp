@@ -70,7 +70,7 @@ struct physics_rigidbodies
     //volatile int data_written = 0;
     std::mutex data_lock;
 
-    int max_physics_bodies = 10000;
+    int max_physics_bodies = 1000;
 
     void init(cl::context& ctx, cl::buffer_manager& buffers);
 

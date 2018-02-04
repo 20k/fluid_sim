@@ -190,8 +190,6 @@ void phys_cpu::physics_body::tick(double timestep_s, double fluid_timestep_s)
     vec2f vel = unprocessed_fluid_velocity;
     vel.y() = -vel.y();
 
-    vel = vel * 100.f;
-
     //std::cout << vel << std::endl;
 
     //std::cout << vel << std::endl;
@@ -313,7 +311,7 @@ void phys_cpu::physics_rigidbodies::init(cl::context& ctx, cl::buffer_manager& b
 
     //fall.init_sphere(1.f, {0, 50, 0});
 
-    for(int i=0; i < 1; i++)
+    for(int i=0; i < 509; i++)
     {
         physics_body* pb1 = make_sphere(1.f, 5.f, {500 + 5 * i, 50, 0});
 
@@ -381,8 +379,6 @@ void phys_cpu::physics_rigidbodies::process_gpu_reads()
 
     if(data_written.compare_exchange_strong(exchange, 0))
     {
-        std::cout << "exec\n";
-
         std::lock_guard<std::mutex> guard(data_lock);
 
         ///we need to pass this out as a parameter
@@ -395,7 +391,7 @@ void phys_cpu::physics_rigidbodies::process_gpu_reads()
 
             pbody->unprocessed_fluid_velocity = cpu_positions[i];
 
-            std::cout << pbody->unprocessed_fluid_velocity << std::endl;
+            //std::cout << pbody->unprocessed_fluid_velocity << std::endl;
 
             cpu_positions[i] = {0,0};
         }
@@ -518,14 +514,17 @@ void phys_cpu::physics_rigidbodies::issue_gpu_reads(cl::command_queue& cqueue, c
 
     //std::cout << "to_write " << dat->num_positions << std::endl;
 
-    cl::write_event<vec2f> wrdata = to_read_positions->async_write<vec2f>(cqueue, positions);
-    //wrdata.set_completion_callback(on_write_complete, dat);
+    //printf("prewrite\n");
+
+    cl::write_event<vec2f> wrdata = to_read_positions->async_write(cqueue, positions);
 
     cl::args args;
     args.push_back(velocity);
     args.push_back(to_read_positions);
     args.push_back(num_positions);
     args.push_back(positions_out);
+
+    //printf("wrote\n");
 
     cl::event kernel_evt;
 
@@ -537,7 +536,7 @@ void phys_cpu::physics_rigidbodies::issue_gpu_reads(cl::command_queue& cqueue, c
     read.set_completion_callback(on_read_complete, rdata);
 
 
-    assert(kernel_evt.invalid == false);
+    //assert(kernel_evt.invalid == false);
 
     //std::cout << "queue\n";
 }
