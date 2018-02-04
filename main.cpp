@@ -6,6 +6,9 @@
 #include "fluid.hpp"
 #include "lighting.hpp"
 #include "physics.hpp"
+#include "physics_gpu.hpp"
+
+extern int b3OpenCLUtils_clewInit();
 
 int main()
 {
@@ -22,6 +25,8 @@ int main()
     sf::RenderWindow win;
     win.create(sf::VideoMode(window_size.x(), window_size.y()), "Test", sf::Style::Default, settings);
 
+    b3OpenCLUtils_clewInit();
+
     cl::context ctx;
 
     cl::program program(ctx, "fluid.cl");
@@ -34,61 +39,10 @@ int main()
 
     cl::buffer_manager buffer_manage;
 
-    #if 0
-    sf::Clock clk2;
-
-    cl::kernel blank(program, "blank");
-
-    std::vector<int> zero{0};
-    cl::buffer* buf = buffer_manage.fetch<cl::buffer>(ctx, nullptr);
-    buf->alloc(cqueue, zero);
-
-    cl::args valargs;
-    valargs.push_back(buf);
-
-    for(int i=0; i < 22000; i++)
-    {
-        cqueue.exec(blank, valargs, {1024}, {256});
-    }
-
-    cqueue.block();
-
-    std::cout << "TIME " << clk2.getElapsedTime().asMicroseconds() / 1000. / 1000. << std::endl;
-    #endif
-
-    /*cl::buffer* buf = buffer_manage.fetch<cl::buffer>(ctx, nullptr);
-
-    std::vector<int> data;
-
-    for(int i=0; i < window_size.x() * window_size.y(); i++)
-    {
-        data.push_back(i);
-    }
-
-    buf->alloc(cqueue, data);
-
-    std::vector<vec4f> idata;
-
-    for(int i=0; i < window_size.x() * window_size.y(); i++)
-    {
-        idata.push_back({randf_s(-0.01f, 0.01f) + (float)i / (window_size.x() * window_size.y()), 0, 0, 1});
-    }
-
-    cl::buffer* image = buffer_manage.fetch<cl::buffer>(ctx, nullptr);
-
-    image->alloc_img(cqueue, idata, window_size);*/
 
     cl::cl_gl_interop_texture* interop = buffer_manage.fetch<cl::cl_gl_interop_texture>(ctx, nullptr, win.getSize().x, win.getSize().y);
     interop->acquire(cqueue);
 
-    /*cl::args none;
-    //none.push_back(buf);
-    none.push_back(interop);
-    none.push_back(image);
-
-    cqueue.exec(program, "fluid_test", none, {128}, {16});
-
-    cqueue.block();*/
 
     vec2i screen_dim = {win.getSize().x, win.getSize().y};
 
@@ -99,9 +53,35 @@ int main()
     lighting_manager lighting_manage;
     lighting_manage.init(ctx, buffer_manage, program, cqueue, screen_dim);
 
+    #ifdef PHYSICS_CPU
     phys_cpu::physics_rigidbodies physics;
 
     physics.init();
+    #endif
+
+    phys_gpu::physics_rigidbodies physics_gpu;
+    physics_gpu.init(ctx, cqueue, program);
+
+    ///BEGIN HACKY CIRCLE TEXTURE STUFF
+    sf::RenderTexture intermediate_tex;
+    intermediate_tex.create(10, 10);
+
+    sf::CircleShape shape;
+    shape.setRadius(5.f);
+
+    shape.setPosition(5, 5);
+    shape.setOrigin(5, 5);
+
+    intermediate_tex.setActive(true);
+    intermediate_tex.draw(shape);
+    intermediate_tex.display();
+
+    const sf::Texture& ctex = intermediate_tex.getTexture();
+    unsigned int glid = ctex.getNativeHandle();
+
+    cl::cl_gl_interop_texture* circletex = buffer_manage.fetch<cl::cl_gl_interop_texture>(ctx, nullptr, (GLuint)glid);
+    circletex->acquire(cqueue);
+    ///END HACKY CIRCLE TEXTURE STUFF
 
     sf::Clock clk;
     sf::Keyboard key;
@@ -162,16 +142,27 @@ int main()
         /*cqueue.exec(program, "fluid_test", none, {800, 600}, {16, 16});
         cqueue.block();*/
 
-
         fluid_manage.tick(interop, buffer_manage, program, cqueue);
+
+        #ifdef PHYSICS_CPU
         physics.issue_gpu_reads(readback_queue, fluid_manage.get_velocity_buf(0));
+        #endif
+
+        ///for some reason nothing shows up if we render after ticking
+        ///dont understand why
+        physics_gpu.render(cqueue, program, interop, circletex);
+        physics_gpu.tick(elapsed_s, fluid_manage.timestep_s, fluid_manage.get_velocity_buf(0));
 
         //lighting_manage.tick(interop, buffer_manage, program, cqueue, cur_mouse, fluid_manage.dye[fluid_manage.which_dye]);
 
+
+
         interop->gl_blit_me(0, cqueue);
 
+        #ifdef PHYSICS_CPU
         physics.tick(elapsed_s, fluid_manage.timestep_s);
         physics.render(win);
+        #endif // PHYSICS_CPU
 
         if(key.isKeyPressed(sf::Keyboard::Escape))
             system("Pause");
@@ -184,7 +175,9 @@ int main()
         ///should do one frame ahead shenanigans
         cqueue.block();
 
+        #ifdef PHYSICS_CPU
         physics.process_gpu_reads();
+        #endif // PHYSICS_CPU
 
     }
 

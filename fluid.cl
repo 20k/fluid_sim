@@ -1180,3 +1180,71 @@ void blank(__global int* value)
 {
     *value = *value + 1;
 }
+
+///BEGIN OPENCL BULLET STUFF
+
+typedef struct
+{
+	float4 m_pos;
+	float4 m_quat;
+	float4 m_linVel;
+	float4 m_angVel;
+	unsigned int m_collidableIdx;
+	float m_invMass;
+	float m_restituitionCoeff; ///aha, here you are! TODO: FOUND RESTITUTION
+	float m_frictionCoeff;
+} Body;
+
+__kernel void
+	copyTransformsToVBOKernel( __global Body* gBodies, __global float4* posOrnColor, const int numNodes)
+{
+	int nodeID = get_global_id(0);
+	if( nodeID < numNodes )
+	{
+		posOrnColor[nodeID] = (float4) (gBodies[nodeID].m_pos.xyz,1.0);
+		posOrnColor[nodeID + numNodes] = gBodies[nodeID].m_quat;
+	}
+}
+
+__kernel
+void hacky_render(__read_only image2d_t tex, __write_only image2d_t screen, __global Body* gBodies, int max_bodies)
+{
+    int idx = get_global_id(0);
+
+    int2 dim = get_image_dim(tex);
+
+    if(idx >= dim.x * dim.y)
+        return;
+
+    int body_idx = get_global_id(1);
+
+    if(body_idx >= max_bodies)
+        return;
+
+    int2 id;
+    id.x = idx % dim.x;
+    id.y = idx / dim.x;
+
+    sampler_t sam_near = CLK_NORMALIZED_COORDS_FALSE |
+                    CLK_ADDRESS_NONE |
+                    CLK_FILTER_NEAREST;
+
+    int4 val = read_imagei(tex, sam_near, id);
+
+    int2 pos = convert_int2(gBodies[body_idx].m_pos.xy);
+
+    int2 offset = convert_int2(id + pos);
+
+    int2 sdim = get_image_dim(screen);
+
+    if(any(offset < 0) || any(offset >= sdim))
+        return;
+
+    if(val.w == 0)
+        return;
+
+    ///check this works
+    write_imagef(screen, offset, convert_float4(val) / 255.f);
+}
+
+///END OF OPENCL BULLET STUFF
