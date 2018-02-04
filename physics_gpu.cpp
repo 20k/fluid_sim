@@ -303,6 +303,9 @@ void phys_gpu::physics_rigidbodies::tick(double timestep_s, double fluid_timeste
     args.push_back(timestep);
     args.push_back(frame_timestep_s);
 
+    ///perturbing the objects on the gpu seems to cause framerate to tank
+    ///to be equivalent to the currently terrible cpu implementation
+    ///so: I'm just going to optimise the readback of the cpu impl
     cqueue.exec(program, "keep_upright_and_fluid", args, {num_objects}, {128});
 }
 
