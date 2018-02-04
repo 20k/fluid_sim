@@ -261,9 +261,11 @@ void phys_cpu::physics_rigidbodies::init(cl::context& ctx, cl::buffer_manager& b
 
     //fall.init_sphere(1.f, {0, 50, 0});
 
-    for(int i=0; i < 509; i++)
+    //for(int i=0; i < 509; i++)
+    for(int y=0; y < 100; y++)
+    for(int x=0; x < 10; x++)
     {
-        physics_body* pb1 = make_sphere(1.f, 5.f, {500 + 5 * i, 50, 0});
+        physics_body* pb1 = make_sphere(1.f, 5.f, {500 + 5 * x, 50 + y * 5, 0});
 
         pb1->add(dynamicsWorld);
     }
