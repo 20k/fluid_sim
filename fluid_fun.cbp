@@ -73,7 +73,10 @@
 		<Unit filename="fluid.hpp" />
 		<Unit filename="lighting.hpp" />
 		<Unit filename="main.cpp" />
+		<Unit filename="physics.cpp" />
 		<Unit filename="physics.hpp" />
+		<Unit filename="physics_gpu.cpp" />
+		<Unit filename="physics_gpu.hpp" />
 		<Extensions>
 			<code_completion />
 			<envvars />
