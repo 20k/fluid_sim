@@ -40,6 +40,7 @@ struct physics_body
     void calculate_center();
 
     std::vector<vec2f> decompose_centrally(const std::vector<vec2f>& vert_in);
+    std::vector<vec2f> get_world_vertices();
 
     void init_sphere(float mass, float rad, vec3f start_pos = {0,0,0});
     void init_rectangle(float mass, vec3f half_extents, vec3f start_pos = {0,0,0});
@@ -68,7 +69,7 @@ struct physics_rigidbodies
     volatile int num_written = 0;
     std::mutex data_lock;
 
-    int max_physics_bodies = 100000;
+    int max_physics_vertices = 100000;
 
     void init(cl::context& ctx, cl::buffer_manager& buffers);
 

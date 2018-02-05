@@ -171,7 +171,7 @@ void phys_cpu::physics_body::tick(double timestep_s, double fluid_timestep_s)
     unprocessed_fluid_velocity = {0,0};
 }
 
-void phys_cpu::physics_body::render(sf::RenderWindow& win)
+std::vector<vec2f> phys_cpu::physics_body::get_world_vertices()
 {
     btTransform trans;
     body->getMotionState()->getWorldTransform(trans);
@@ -181,18 +181,30 @@ void phys_cpu::physics_body::render(sf::RenderWindow& win)
 
     quat q = convert_from_bullet_quaternion(rotation);
 
-    std::vector<sf::Vertex> verts;
+    std::vector<vec2f> ret;
 
     for(int i=0; i < (int)vertices.size(); i++)
     {
         vec2f local_pos = vertices[i];
-        //vec2f global_pos = local_pos + (vec2f) {pos.getX(), pos.getY()};
 
         vec3f transformed_local = rot_quat({local_pos.x(), local_pos.y(), 0.f}, q);
         vec2f global_pos = transformed_local.xy() + (vec2f){pos.getX(), pos.getY()};
 
+        ret.push_back(global_pos);
+    }
+
+    return ret;
+}
+
+void phys_cpu::physics_body::render(sf::RenderWindow& win)
+{
+    std::vector<sf::Vertex> verts;
+    std::vector<vec2f> world = get_world_vertices();
+
+    for(int i=0; i < (int)world.size(); i++)
+    {
         sf::Vertex vert;
-        vert.position = sf::Vector2f(global_pos.x(), global_pos.y());
+        vert.position = sf::Vector2f(world[i].x(), world[i].y());
 
         verts.push_back(vert);
     }
@@ -289,9 +301,9 @@ void phys_cpu::physics_rigidbodies::init(cl::context& ctx, cl::buffer_manager& b
     to_read_positions = buffers.fetch<cl::buffer>(ctx, nullptr);
     positions_out = buffers.fetch<cl::buffer>(ctx, nullptr);
 
-    to_read_positions->alloc_bytes(sizeof(vec2f) * max_physics_bodies);
-    positions_out->alloc_bytes(sizeof(vec2f) * max_physics_bodies);
-    cpu_positions.resize(max_physics_bodies);
+    to_read_positions->alloc_bytes(sizeof(vec2f) * max_physics_vertices);
+    positions_out->alloc_bytes(sizeof(vec2f) * max_physics_vertices);
+    cpu_positions.resize(max_physics_vertices);
 
     //physics_body* pb2 = make_sphere(1.f, 5.f, {501, 60, 0});
 
@@ -412,6 +424,15 @@ void on_write_complete(cl_event event, cl_int event_command_exec_status, void* u
 
 void phys_cpu::physics_rigidbodies::issue_gpu_reads(cl::command_queue& cqueue, cl::buffer* velocity, vec2f velocity_scale)
 {
+    ///hmm. The problem is, its quite difficult to scatter/gather a series of points as whole objects
+    ///when they have different numbers of vertices in those objects
+    ///can either use some sort of id based indirection scheme with two buffers, or...
+    ///just naively readback the whole set of points. Increases readback bandwidth, BUT at the same time
+    ///we may very well need that entire bandwidth anyway, so...
+    ///so: per vertex, we need:
+    ///fluid velocity (yay differential!), whether or not position is occupied by particle
+    ///add/remove of physobjects is going to be a problem, need to do some sort of id cpuside and then use a map
+    ///but ignore that for the moment
     std::vector<vec2f> positions;
 
     for(physics_body* pbody : elems)
