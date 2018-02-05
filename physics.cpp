@@ -181,8 +181,8 @@ void phys_cpu::physics_body::tick(double timestep_s, double fluid_timestep_s)
 
         vec2f target = vel * (float)(fluid_timestep_s / timestep_s);
 
-        if(target.length() < 0.0000001f)
-            return;
+        //if(target.length() < 0.0001f)
+        //    return;
 
         vec2f local_pos = vertices[i];
 
