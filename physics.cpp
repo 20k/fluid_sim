@@ -329,9 +329,11 @@ void phys_cpu::physics_rigidbodies::process_gpu_reads()
     {
         std::lock_guard<std::mutex> guard(data_lock);
 
+        int num = num_written;
+
         ///we need to pass this out as a parameter
         ///between threads
-        int num_bodies = elems.size();
+        int num_bodies = std::min((int)elems.size(), num);
 
         for(int i=0; i < num_bodies; i++)
         {
@@ -360,6 +362,7 @@ struct read_completion_data
 {
     phys_cpu::physics_rigidbodies* body = nullptr;
     std::vector<vec2f>* data = nullptr;
+    int num_positions = 0;
 };
 
 void on_read_complete(cl_event event, cl_int event_command_exec_status, void* user_data)
@@ -375,6 +378,7 @@ void on_read_complete(cl_event event, cl_int event_command_exec_status, void* us
         rdata->body->cpu_positions[i] = (*data)[i];
     }
 
+    rdata->body->num_written = rdata->num_positions;
     rdata->body->data_written = 1;
 
     delete data;
@@ -397,7 +401,7 @@ void on_write_complete(cl_event event, cl_int event_command_exec_status, void* u
 
     cl::read_event<vec2f> read = dat->positions_out->async_read<vec2f>(*dat->cqueue, 0, dat->num_positions, false, {&evt});
 
-    read_completion_data* rdata = new read_completion_data{dat->bodies, read.data};
+    read_completion_data* rdata = new read_completion_data{dat->bodies, read.data, dat->num_positions};
     read.set_completion_callback(on_read_complete, rdata);
 
     assert(evt.invalid == false);

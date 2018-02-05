@@ -65,6 +65,7 @@ struct physics_rigidbodies
     std::atomic_int data_written;
 
     //volatile int data_written = 0;
+    volatile int num_written = 0;
     std::mutex data_lock;
 
     int max_physics_bodies = 100000;
