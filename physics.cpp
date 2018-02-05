@@ -126,6 +126,8 @@ void phys_cpu::physics_body::init(float mass, btConvexShape* shape_3d, vec3f sta
     body->setLinearFactor(btVector3(1, 1, 0));
     body->setAngularFactor(btVector3(0, 0, 1));
 
+    unprocessed_fluid_vel.resize(vertices.size());
+
     //body->setRestitution(1.f);
 }
 
@@ -152,6 +154,7 @@ void phys_cpu::physics_body::tick(double timestep_s, double fluid_timestep_s)
     if(timestep_s < 0.000001)
         return;
 
+    #if 0
     vec2f vel = unprocessed_fluid_velocity;
     vel.y() = -vel.y();
 
@@ -169,6 +172,32 @@ void phys_cpu::physics_body::tick(double timestep_s, double fluid_timestep_s)
     body->applyCentralImpulse(btVector3(velocity_diff.x(),velocity_diff.y(), 0));
 
     unprocessed_fluid_velocity = {0,0};
+    #endif // 0
+
+    for(int i=0; i < vertices.size(); i++)
+    {
+        vec2f vel = unprocessed_fluid_vel[i];
+        vel.y() = -vel.y();
+
+        vec2f target = vel * (float)(fluid_timestep_s / timestep_s);
+
+        if(target.length() < 0.0000001f)
+            return;
+
+        vec2f local_pos = vertices[i];
+
+        btVector3 bt_local_pos = btVector3(local_pos.x(), local_pos.y(), 0.f);
+
+        btVector3 global_velocity_in_local_point = body->getVelocityInLocalPoint(bt_local_pos);
+
+        vec2f velocity_diff = (target - (vec2f){global_velocity_in_local_point.getX(), global_velocity_in_local_point.getY()}) * current_mass;
+
+        velocity_diff = velocity_diff / (float)vertices.size();
+
+        body->applyImpulse(btVector3(velocity_diff.x(), velocity_diff.y(), 0), bt_local_pos);
+
+        unprocessed_fluid_vel[i] = {0,0};
+    }
 }
 
 std::vector<vec2f> phys_cpu::physics_body::get_world_vertices()
@@ -293,7 +322,7 @@ void phys_cpu::physics_rigidbodies::init(cl::context& ctx, cl::buffer_manager& b
     {
         //physics_body* pb1 = make_sphere(1.f, 5.f, {500 + 5 * x, 50 + y * 5, 0});
 
-        physics_body* pb1 = make_rectangle(1.f, 5.f, {500 + 10 * x, 50 + y * 10, 0});
+        physics_body* pb1 = make_rectangle(1.f, 5.f, {500 + 20 * x, 50 + y * 20, 0});
 
         pb1->add(dynamicsWorld);
     }
@@ -345,14 +374,33 @@ void phys_cpu::physics_rigidbodies::process_gpu_reads()
 
         ///we need to pass this out as a parameter
         ///between threads
-        int num_bodies = std::min((int)elems.size(), num);
+        //int num_bodies = std::min((int)elems.size(), num);
+
+        int num_bodies = num;
+
+        int current_pbody = 0;
+        int current_vert = 0;
 
         for(int i=0; i < num_bodies; i++)
         {
-            physics_body* pbody = elems[i];
+            if(current_pbody >= elems.size())
+                continue;
 
-            pbody->unprocessed_fluid_velocity = cpu_positions[i];
+            physics_body* pbody = elems[current_pbody];
 
+            vec2f next_position = cpu_positions[i];
+
+            if(current_vert >= pbody->unprocessed_fluid_vel.size())
+            {
+                current_vert = 0;
+                current_pbody++;
+                i--;
+                continue;
+            }
+
+            pbody->unprocessed_fluid_vel[current_vert] = next_position;
+
+            current_vert++;
             cpu_positions[i] = {0,0};
         }
     }
@@ -437,14 +485,22 @@ void phys_cpu::physics_rigidbodies::issue_gpu_reads(cl::command_queue& cqueue, c
 
     for(physics_body* pbody : elems)
     {
-        positions.push_back(pbody->get_pos() / velocity_scale);
+        std::vector<vec2f> pos = pbody->get_world_vertices();
+
+        for(vec2f& i : pos)
+        {
+            i = i / velocity_scale;
+            positions.push_back(i);
+        }
+
+        //positions.push_back(pbody->get_pos() / velocity_scale);
     }
 
     int num_positions = positions.size();
 
     cl::write_event<vec2f> wrdata = to_read_positions->async_write(cqueue, positions);
 
-    completion_data* dat = new completion_data{this, &cqueue, velocity, to_read_positions, positions_out, elems.size(), wrdata.data};
+    completion_data* dat = new completion_data{this, &cqueue, velocity, to_read_positions, positions_out, num_positions, wrdata.data};
 
     #define SUPER_ASYNC
     #ifndef SUPER_ASYNC

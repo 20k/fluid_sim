@@ -22,6 +22,9 @@ struct btConvexShape;
 namespace phys_cpu
 {
 
+///TODO: Decouple physics sampling points from
+///rendering points
+///so we can use circles without killing the framerate
 struct physics_body
 {
     std::vector<vec2f> vertices;
@@ -31,7 +34,9 @@ struct physics_body
     btRigidBody* body = nullptr;
     btConvexShape* saved_shape = nullptr;
 
-    vec2f unprocessed_fluid_velocity = {0,0};
+    //vec2f unprocessed_fluid_velocity = {0,0};
+
+    std::vector<vec2f> unprocessed_fluid_vel;
 
     btDiscreteDynamicsWorld* world = nullptr;
 
