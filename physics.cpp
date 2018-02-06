@@ -253,7 +253,6 @@ std::vector<vec2f> phys_cpu::physics_body::get_world_vertices()
 
 void phys_cpu::physics_body::render(std::vector<sf::Vertex>& out)
 {
-    //std::vector<sf::Vertex> verts;
     std::vector<vec2f> world = get_world_vertices();
 
     for(int i=0; i < (int)world.size(); i++)
@@ -264,15 +263,6 @@ void phys_cpu::physics_body::render(std::vector<sf::Vertex>& out)
 
         out.push_back(vert);
     }
-
-    /*sf::CircleShape circle;
-    circle.setRadius(10);
-    circle.setPosition(pos.getX(), pos.getY());*/
-
-    //win.draw(circle);
-
-    //win.draw(&verts[0], verts.size(), sf::Triangles);
-    //win.draw(&verts[0], verts.size(), sf::Triangles, state);
 }
 
 void phys_cpu::physics_body::add(btDynamicsWorld* world)
