@@ -29,6 +29,7 @@ struct physics_body
 {
     std::vector<vec2f> vertices;
     vec2f local_centre;
+    vec3f col = {1,1,1};
 
     float current_mass = 1.f;
     btRigidBody* body = nullptr;

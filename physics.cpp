@@ -175,6 +175,14 @@ void phys_cpu::physics_body::tick(double timestep_s, double fluid_timestep_s)
     unprocessed_fluid_velocity = {0,0};
     #endif // 0
 
+    int num_unprocessed = 0;
+
+    for(int i=0; i < vertices.size(); i++)
+    {
+        if(unprocessed_is_blocked[i])
+            num_unprocessed++;
+    }
+
     for(int i=0; i < vertices.size(); i++)
     {
         vec2f vel = unprocessed_fluid_vel[i];
@@ -182,22 +190,39 @@ void phys_cpu::physics_body::tick(double timestep_s, double fluid_timestep_s)
 
         vec2f target = vel * (float)(fluid_timestep_s / timestep_s);
 
-        //if(target.length() < 0.0001f)
-        //    return;
-
         vec2f local_pos = vertices[i];
 
         btVector3 bt_local_pos = btVector3(local_pos.x(), local_pos.y(), 0.f);
 
         btVector3 global_velocity_in_local_point = body->getVelocityInLocalPoint(bt_local_pos);
+        vec2f global_vel = {global_velocity_in_local_point.getX(), global_velocity_in_local_point.getY()};
 
-        vec2f velocity_diff = (target - (vec2f){global_velocity_in_local_point.getX(), global_velocity_in_local_point.getY()}) * current_mass;
+        vec2f velocity_diff = (target - global_vel) * current_mass;
 
         velocity_diff = velocity_diff / (float)vertices.size();
 
-        body->applyImpulse(btVector3(velocity_diff.x(), velocity_diff.y(), 0), bt_local_pos);
+        ///ALERT: TODO: HACK
+        ///if there's only one corner in the ground, we process fluid
+        ///if there's more than one corner in the ground, negative velocity
+        ///can't do anything more intelligent until I have proper occlusion fractions
+        if(!unprocessed_is_blocked[i] && num_unprocessed <= 1)
+        {
+            body->applyImpulse(btVector3(velocity_diff.x(), velocity_diff.y(), 0), bt_local_pos);
+
+            //col = {1,1,1};
+        }
+
+        if(unprocessed_is_blocked[i] && num_unprocessed > 0)
+        {
+            vec2f to_remove = -global_vel / num_unprocessed;// / (float)vertices.size();
+
+            body->applyImpulse(btVector3(to_remove.x(), to_remove.y(), 0), bt_local_pos);
+
+            //col = {1, 0, 0};
+        }
 
         unprocessed_fluid_vel[i] = {0,0};
+        unprocessed_is_blocked[i] = 0;
     }
 }
 
@@ -235,6 +260,7 @@ void phys_cpu::physics_body::render(sf::RenderWindow& win)
     {
         sf::Vertex vert;
         vert.position = sf::Vector2f(world[i].x(), world[i].y());
+        vert.color = sf::Color(col.x() * 255, col.y() * 255, col.z() * 255);
 
         verts.push_back(vert);
     }
