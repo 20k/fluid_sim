@@ -87,6 +87,8 @@
 			<Add option="-lbullet3dynamics" />
 			<Add option="-lbullet3geometry" />
 		</Linker>
+		<Unit filename="Shaders/cull.fglsl" />
+		<Unit filename="Shaders/cull.vglsl" />
 		<Unit filename="deps/ocl/logging.cpp" />
 		<Unit filename="deps/ocl/logging.hpp" />
 		<Unit filename="deps/ocl/ocl.cpp" />
