@@ -148,7 +148,7 @@ int main()
         }
 
         if(use_cpu_physics)
-            physics.issue_gpu_reads(cqueue, fluid_manage.get_velocity_buf(0), fluid_manage.velocity_to_display_ratio);
+            physics.issue_gpu_reads(cqueue, fluid_manage.get_velocity_buf(0), fluid_manage.physics_tex[fluid_manage.which_physics_tex], fluid_manage.velocity_to_display_ratio);
 
         /*cqueue.exec( "fluid_test", none, {800, 600}, {16, 16});
         cqueue.block();*/

@@ -127,6 +127,7 @@ void phys_cpu::physics_body::init(float mass, btConvexShape* shape_3d, vec3f sta
     body->setAngularFactor(btVector3(0, 0, 1));
 
     unprocessed_fluid_vel.resize(vertices.size());
+    unprocessed_is_blocked.resize(vertices.size());
 
     //body->setRestitution(1.f);
 }
@@ -332,7 +333,7 @@ void phys_cpu::physics_rigidbodies::init(cl::context& ctx, cl::buffer_manager& b
 
     to_read_positions->alloc_bytes(sizeof(vec2f) * max_physics_vertices);
     positions_out->alloc_bytes(sizeof(vec2f) * max_physics_vertices);
-    cpu_positions.resize(max_physics_vertices);
+    cpu_positions.resize(max_physics_vertices*3);
 
     //physics_body* pb2 = make_sphere(1.f, 5.f, {501, 60, 0});
 
@@ -372,6 +373,8 @@ void phys_cpu::physics_rigidbodies::process_gpu_reads()
 
         int num = num_written;
 
+        //std::cout << num << std::endl;
+
         ///we need to pass this out as a parameter
         ///between threads
         //int num_bodies = std::min((int)elems.size(), num);
@@ -381,27 +384,35 @@ void phys_cpu::physics_rigidbodies::process_gpu_reads()
         int current_pbody = 0;
         int current_vert = 0;
 
-        for(int i=0; i < num_bodies; i++)
+        for(int i=0; i < num_bodies; i+=3)
         {
             if(current_pbody >= elems.size())
                 continue;
 
             physics_body* pbody = elems[current_pbody];
 
-            vec2f next_position = cpu_positions[i];
+            vec2f next_position;
+            next_position.x() = cpu_positions[i];
+            next_position.y() = cpu_positions[i+1];
+
+            int is_blocked = cpu_positions[i+2];
 
             if(current_vert >= pbody->unprocessed_fluid_vel.size())
             {
                 current_vert = 0;
                 current_pbody++;
-                i--;
+                i-=3;
                 continue;
             }
 
             pbody->unprocessed_fluid_vel[current_vert] = next_position;
+            pbody->unprocessed_is_blocked[current_vert] = is_blocked;
 
             current_vert++;
-            cpu_positions[i] = {0,0};
+
+            cpu_positions[i] = 0;
+            cpu_positions[i+1] = 0;
+            cpu_positions[i+2] = 0;
         }
     }
 }
@@ -411,6 +422,7 @@ struct completion_data
     phys_cpu::physics_rigidbodies* bodies = nullptr;
     cl::command_queue* cqueue = nullptr;
     cl::buffer* velocity = nullptr;
+    cl::buffer* particle_buffer = nullptr;
     cl::buffer* to_read_positions = nullptr;
     cl::buffer* positions_out = nullptr;
     int num_positions = 0;
@@ -421,15 +433,14 @@ struct completion_data
 struct read_completion_data
 {
     phys_cpu::physics_rigidbodies* body = nullptr;
-    std::vector<vec2f>* data = nullptr;
-    int num_positions = 0;
+    std::vector<float>* data = nullptr;
 };
 
 void on_read_complete(cl_event event, cl_int event_command_exec_status, void* user_data)
 {
     read_completion_data* rdata = (read_completion_data*)user_data;
 
-    std::vector<vec2f>* data = rdata->data;
+    std::vector<float>* data = rdata->data;
 
     std::lock_guard<std::mutex> guard(rdata->body->data_lock);
 
@@ -438,7 +449,7 @@ void on_read_complete(cl_event event, cl_int event_command_exec_status, void* us
         rdata->body->cpu_positions[i] = (*data)[i];
     }
 
-    rdata->body->num_written = rdata->num_positions;
+    rdata->body->num_written = data->size();
     rdata->body->data_written = 1;
 
     delete data;
@@ -451,6 +462,7 @@ void on_write_complete(cl_event event, cl_int event_command_exec_status, void* u
 
     cl::args args;
     args.push_back(dat->velocity);
+    args.push_back(dat->particle_buffer);
     args.push_back(dat->to_read_positions);
     args.push_back(dat->num_positions);
     args.push_back(dat->positions_out);
@@ -459,9 +471,11 @@ void on_write_complete(cl_event event, cl_int event_command_exec_status, void* u
 
     dat->cqueue->exec("fluid_fetch_velocities", args, {dat->num_positions}, {128}, &evt);
 
-    cl::read_event<vec2f> read = dat->positions_out->async_read<vec2f>(*dat->cqueue, 0, dat->num_positions, false, {&evt});
+    int to_read = dat->num_positions * 3;
 
-    read_completion_data* rdata = new read_completion_data{dat->bodies, read.data, dat->num_positions};
+    cl::read_event<float> read = dat->positions_out->async_read<float>(*dat->cqueue, 0, to_read, false, {&evt});
+
+    read_completion_data* rdata = new read_completion_data{dat->bodies, read.data};
     read.set_completion_callback(on_read_complete, rdata);
 
     assert(evt.invalid == false);
@@ -470,7 +484,7 @@ void on_write_complete(cl_event event, cl_int event_command_exec_status, void* u
     delete dat;
 }
 
-void phys_cpu::physics_rigidbodies::issue_gpu_reads(cl::command_queue& cqueue, cl::buffer* velocity, vec2f velocity_scale)
+void phys_cpu::physics_rigidbodies::issue_gpu_reads(cl::command_queue& cqueue, cl::buffer* velocity, cl::buffer* particle_buffer, vec2f velocity_scale)
 {
     ///hmm. The problem is, its quite difficult to scatter/gather a series of points as whole objects
     ///when they have different numbers of vertices in those objects
@@ -496,11 +510,13 @@ void phys_cpu::physics_rigidbodies::issue_gpu_reads(cl::command_queue& cqueue, c
         //positions.push_back(pbody->get_pos() / velocity_scale);
     }
 
+    //std::cout << "writing " << positions.size() * 2 << std::endl;
+
     int num_positions = positions.size();
 
     cl::write_event<vec2f> wrdata = to_read_positions->async_write(cqueue, positions);
 
-    completion_data* dat = new completion_data{this, &cqueue, velocity, to_read_positions, positions_out, num_positions, wrdata.data};
+    completion_data* dat = new completion_data{this, &cqueue, velocity, particle_buffer, to_read_positions, positions_out, num_positions, wrdata.data};
 
     #define SUPER_ASYNC
     #ifndef SUPER_ASYNC

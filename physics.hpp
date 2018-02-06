@@ -37,6 +37,7 @@ struct physics_body
     //vec2f unprocessed_fluid_velocity = {0,0};
 
     std::vector<vec2f> unprocessed_fluid_vel;
+    std::vector<int> unprocessed_is_blocked;
 
     btDiscreteDynamicsWorld* world = nullptr;
 
@@ -64,7 +65,7 @@ struct physics_rigidbodies
 {
     std::vector<physics_body*> elems;
 
-    std::vector<vec2f> cpu_positions;
+    std::vector<float> cpu_positions;
     cl::buffer* to_read_positions = nullptr;
     cl::buffer* positions_out = nullptr;
 
@@ -89,7 +90,7 @@ struct physics_rigidbodies
     void render(sf::RenderWindow& win);
 
     void process_gpu_reads();
-    void issue_gpu_reads(cl::command_queue& cqueue, cl::buffer* velocity, vec2f velocity_scale);
+    void issue_gpu_reads(cl::command_queue& cqueue, cl::buffer* velocity, cl::buffer* particle_buffer, vec2f velocity_scale);
 
     ~physics_rigidbodies();
 };

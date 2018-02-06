@@ -480,8 +480,12 @@ void fluid_advect_particles(__read_only image2d_t velocity, __global struct flui
     particles[gid].pos = new_pos - 0.5f;
 }
 
+///READBACK INFO:
+///float2 velocity
+///float occupied
+
 __kernel
-void fluid_fetch_velocities(__read_only image2d_t velocity, __global float2* positions, int num_positions, __global float2* out)
+void fluid_fetch_velocities(__read_only image2d_t velocity, __read_only image2d_t particles_in, __global float2* positions, int num_positions, __global float* out)
 {
     int gid = get_global_id(0);
 
@@ -492,6 +496,10 @@ void fluid_fetch_velocities(__read_only image2d_t velocity, __global float2* pos
                     CLK_ADDRESS_CLAMP_TO_EDGE |
                     CLK_FILTER_LINEAR;
 
+    sampler_t sam_near = CLK_NORMALIZED_COORDS_FALSE |
+                    CLK_ADDRESS_CLAMP_TO_EDGE |
+                    CLK_FILTER_NEAREST;
+
     int2 dim = get_image_dim(velocity);
 
     float2 pos = positions[gid];
@@ -499,9 +507,17 @@ void fluid_fetch_velocities(__read_only image2d_t velocity, __global float2* pos
     ///its easier to flip this here
     pos.y = dim.y - pos.y;
 
+    float4 blocked = read_imagef(velocity, sam_near, pos);
+
     float4 val = read_imagef(velocity, sam, pos);
 
-    out[gid] = val.xy;
+    int found_gid = blocked.x - 1;
+
+    int is_blocked = found_gid < 0;
+
+    out[gid*3 + 0] = val.x;
+    out[gid*3 + 1] = val.y;
+    out[gid*3 + 2] = is_blocked;
 }
 
 typedef uint uint32_t;
