@@ -195,8 +195,6 @@ int main()
             physics.tick(elapsed_s, fluid_manage.timestep_s);
         }
 
-        //cqueue.block();
-
         if(key.isKeyPressed(sf::Keyboard::Escape))
             system("Pause");
 
