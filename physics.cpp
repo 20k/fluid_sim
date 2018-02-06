@@ -361,6 +361,25 @@ void phys_cpu::physics_rigidbodies::init(cl::context& ctx, cl::buffer_manager& b
     positions_out->alloc_bytes(sizeof(vec2f) * max_physics_vertices);
     cpu_positions.resize(max_physics_vertices*3);
 
+    /*
+    static sf::Shader shader;
+    static bool loaded_shader = false;
+
+    if(!loaded_shader)
+    {
+        shader.loadFromFile("radial.vglsl", "redblend.fglsl");
+
+        //shader.setParameter("color", sf::Color::White);
+
+        loaded_shader = true;
+    }
+
+    shader.setUniform("windowHeight", (float)win.getSize().y);
+
+    sf::RenderStates state;
+    //state.blendMode = sf::BlendAdd;
+    state.shader = &shader;*/
+
     //physics_body* pb2 = make_sphere(1.f, 5.f, {501, 60, 0});
 
     //pb2->add(dynamicsWorld);

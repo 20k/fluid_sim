@@ -1,0 +1,26 @@
+uniform vec4 color;
+uniform float expand;
+uniform vec2 center;
+uniform float radius;
+uniform float windowHeight;
+uniform float brightness;
+
+void main(void)
+{
+    vec2 centerFromSfml = vec2(center.x, windowHeight - center.y);
+    vec2 p = (gl_FragCoord.xy - centerFromSfml) / radius;
+    float r = sqrt(dot(p, p));
+
+    //r = pow(r, 0.75);
+
+    r = pow(r, 2);
+
+    if (r < 1.0)
+    {
+        gl_FragColor = mix(color, gl_Color, (r - expand) / (1 - expand)) * 0.25 * brightness;
+    }
+    else
+    {
+        gl_FragColor = gl_Color;
+    }
+}

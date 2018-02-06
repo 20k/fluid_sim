@@ -73,6 +73,8 @@ struct physics_rigidbodies
 
     std::atomic_int data_written;
 
+    sf::Shader cull_shader;
+
     //volatile int data_written = 0;
     volatile int num_written = 0;
     std::mutex data_lock;
