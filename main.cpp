@@ -203,7 +203,6 @@ int main()
 
         //test_screen->gl_blit_me(0, cqueue);
 
-        cqueue.block();
         test_screen->unacquire(cqueue);
         #endif // 0
 

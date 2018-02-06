@@ -38,6 +38,9 @@ struct fluid_manager
     int which_physics_tex = 0;
     std::vector<physics_particle> cpu_physics_particles;
 
+    sf::Texture rendered_occlusion_backing;
+    cl::cl_gl_interop_texture* rendered_occlusion;
+
     cl::buffer* noise;
     cl::buffer* w_of;
     cl::buffer* upscaled_advected_velocity;
@@ -89,6 +92,8 @@ struct fluid_manager
         noise = buffers.fetch<cl::buffer>(ctx, nullptr);
         w_of = buffers.fetch<cl::buffer>(ctx, nullptr);
         upscaled_advected_velocity = buffers.fetch<cl::buffer>(ctx, nullptr);
+
+        rendered_occlusion = buffers.fetch<cl::cl_gl_interop_texture>(ctx, nullptr);
 
         std::vector<vec4f> zero_data;
         std::vector<vec4f> dye_concentrates;
@@ -195,6 +200,8 @@ struct fluid_manager
         physics_tex[0]->alloc_img(cqueue, zero_data, velocity_dim, CL_RG, CL_FLOAT);
         physics_tex[1]->alloc_img(cqueue, zero_data, velocity_dim, CL_RG, CL_FLOAT);
 
+        rendered_occlusion_backing.create(dye_dim.x(), dye_dim.y());
+        rendered_occlusion->create_from_texture(rendered_occlusion_backing.getNativeHandle());
 
         cl::args w_of_args;
         w_of_args.push_back(noise);
@@ -406,6 +413,17 @@ struct fluid_manager
 
         cqueue.exec("falling_sand_edge_boundary_condition", generate_args, velocity_dim, {16, 16});
         #endif // PARTICLES_INTERFERE_WITH_FLUID
+
+        #define GENERATE_OCCLUSION
+        #ifdef GENERATE_OCCLUSION
+
+        cl::args occlusion_args;
+        occlusion_args.push_back(p1);
+        occlusion_args.push_back(rendered_occlusion);
+
+        cqueue.exec("falling_sand_generate_occlusion", occlusion_args, dye_dim, {16, 16});
+
+        #endif // GENERATE_OCCLUSION
 
         /*cl::args render_args;
         render_args.push_back(physics_particles);

@@ -60,6 +60,7 @@
 			<Add option="-Wall" />
 			<Add option="-fexceptions" />
 			<Add option="-Wno-narrowing" />
+			<Add option="-Wno-deprecated-declarations" />
 			<Add directory="C:/Users/James/Desktop/projects/fluid_fun/deps" />
 		</Compiler>
 		<Linker>

@@ -989,6 +989,28 @@ void falling_sand_render(__global struct physics_particle* particles, int partic
     }*/
 }
 
+///this is purely to work around opengl formats
+///can maintain a completely separate occlusion buffer vs the physics tex
+__kernel
+void falling_sand_generate_occlusion(__read_only image2d_t physics_tex, __write_only image2d_t occlusion_buffer)
+{
+    int2 id = (int2){get_global_id(0), get_global_id(1)};
+
+    int2 dim = get_image_dim(physics_tex);
+
+    if(any(id < 0) || any(id >= dim))
+        return;
+
+    sampler_t sam = CLK_NORMALIZED_COORDS_FALSE |
+                    CLK_ADDRESS_NONE |
+                    CLK_FILTER_NEAREST;
+
+    float gid = read_imagef(physics_tex, sam, id).x - 1;
+
+    if(gid >= 0)
+        write_imagef(occlusion_buffer, id, 1.f);
+}
+
 __kernel
 void fluid_render_particles(__global struct fluid_particle* particles, int particles_num, __write_only image2d_t screen)
 {
