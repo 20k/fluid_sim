@@ -251,7 +251,7 @@ std::vector<vec2f> phys_cpu::physics_body::get_world_vertices()
     return ret;
 }
 
-void phys_cpu::physics_body::render(sf::RenderWindow& win)
+void phys_cpu::physics_body::render(sf::RenderTarget& win)
 {
     std::vector<sf::Vertex> verts;
     std::vector<vec2f> world = get_world_vertices();
@@ -376,7 +376,7 @@ void phys_cpu::physics_rigidbodies::tick(double timestep_s, double fluid_timeste
     dynamicsWorld->stepSimulation(timestep_s, 10);
 }
 
-void phys_cpu::physics_rigidbodies::render(sf::RenderWindow& win)
+void phys_cpu::physics_rigidbodies::render(sf::RenderTarget& win)
 {
     for(physics_body* pbody : elems)
     {

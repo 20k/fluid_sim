@@ -11,6 +11,7 @@
 namespace sf
 {
     struct RenderWindow;
+    struct RenderTarget;
 }
 
 struct btDiscreteDynamicsWorld;
@@ -57,7 +58,7 @@ struct physics_body
     vec2f get_velocity();
 
     void tick(double timestep_s, double fluid_timestep_s);
-    void render(sf::RenderWindow& win);
+    void render(sf::RenderTarget& win);
 
     void add(btDynamicsWorld* world);
 };
@@ -88,7 +89,7 @@ struct physics_rigidbodies
     void make_2d(btCollisionDispatcher* dispatcher);
 
     void tick(double timestep_s, double fluid_timestep_s);
-    void render(sf::RenderWindow& win);
+    void render(sf::RenderTarget& win);
 
     void process_gpu_reads();
     void issue_gpu_reads(cl::command_queue& cqueue, cl::buffer* velocity, cl::buffer* particle_buffer, vec2f velocity_scale);
