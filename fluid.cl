@@ -998,7 +998,7 @@ void falling_sand_generate_occlusion(__read_only image2d_t physics_tex, __write_
 
     int2 dim = get_image_dim(physics_tex);
 
-    if(any(id < 0) || any(id >= dim))
+    if(any(id >= dim))
         return;
 
     sampler_t sam = CLK_NORMALIZED_COORDS_FALSE |
