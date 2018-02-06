@@ -177,9 +177,6 @@ int main()
         fluid_manage.tick(interop, buffer_manage, cqueue);
         fluid_manage.render_fluid(interop, cqueue);
 
-        ///for some reason nothing shows up if we render after ticking
-        ///dont understand why
-
         if(!use_cpu_physics)
         {
             physics_gpu.render(cqueue, interop, circletex);
@@ -201,8 +198,6 @@ int main()
         interop->gl_blit_me(0, cqueue);
         interop->acquire(cqueue); ///here for performance, not correctness
 
-        ///has to be drawn on top annoyingly
-        ///need to figure out a way to composite from the cpu, or
         if(use_cpu_physics)
         {
             physics.render(win, fluid_manage.rendered_occlusion_backing, fluid_manage.rendered_occlusion, cqueue);
