@@ -96,17 +96,6 @@ int main()
     #endif // 0
     ///END HACKY CIRCLE TEXTURE STUFF
 
-    sf::RenderTexture render_tex;
-    render_tex.create(win.getSize().x, win.getSize().y);
-
-    render_tex.draw(shape);
-    render_tex.clear();
-    render_tex.display();
-
-    cl::cl_gl_interop_texture* test_screen = buffer_manage.fetch<cl::cl_gl_interop_texture>(ctx, nullptr);
-    test_screen->create_from_texture(render_tex.getTexture().getNativeHandle());
-    test_screen->acquire(cqueue);
-
     sf::Clock clk;
     sf::Keyboard key;
 
