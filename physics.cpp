@@ -349,7 +349,7 @@ void phys_cpu::physics_rigidbodies::init(cl::context& ctx, cl::buffer_manager& b
     {
         //physics_body* pb1 = make_sphere(1.f, 5.f, {500 + 5 * x, 50 + y * 5, 0});
 
-        physics_body* pb1 = make_rectangle(1.f, 5.f, {500 + 20 * x, 50 + y * 20, 0});
+        physics_body* pb1 = make_rectangle(1.f, {20, 5}, {500 + 50 * x, 50 + y * 20, 0});
 
         pb1->add(dynamicsWorld);
     }

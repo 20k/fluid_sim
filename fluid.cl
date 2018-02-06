@@ -1322,3 +1322,18 @@ void keep_upright_and_fluid(__global Body* gBodies, int max_bodies, __read_only 
 }
 
 ///END OF OPENCL BULLET STUFF
+
+///utility
+
+__kernel
+void clear_image(__write_only image2d_t img)
+{
+    int2 val = (int2){get_global_id(0), get_global_id(1)};
+
+    int2 dim = get_image_dim(img);
+
+    if(any(val < 0) || any(val >= dim))
+        return;
+
+    write_imagef(img, val, 0);
+}

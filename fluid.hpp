@@ -407,12 +407,12 @@ struct fluid_manager
         cqueue.exec("falling_sand_edge_boundary_condition", generate_args, velocity_dim, {16, 16});
         #endif // PARTICLES_INTERFERE_WITH_FLUID
 
-        cl::args render_args;
+        /*cl::args render_args;
         render_args.push_back(physics_particles);
         render_args.push_back(num_particles);
         render_args.push_back(interop);
 
-        cqueue.exec("falling_sand_render", render_args, {num_particles}, {128});
+        cqueue.exec("falling_sand_render", render_args, {num_particles}, {128});*/
 
         //which_physics_tex = (which_physics_tex + 1) % 2;
 
@@ -422,6 +422,20 @@ struct fluid_manager
         phys_counter++;
     }
 
+    void render_sand(cl::cl_gl_interop_texture* interop, cl::command_queue& cqueue)
+    {
+        interop->acquire(cqueue);
+
+        int num_particles = cpu_physics_particles.size();
+
+        cl::args render_args;
+        render_args.push_back(physics_particles);
+        render_args.push_back(num_particles);
+        render_args.push_back(interop);
+
+        cqueue.exec("falling_sand_render", render_args, {num_particles}, {128});
+    }
+
     float timestep_s = 4600.f/1000.f;
 
     ///future improvement: When decoupling dye/visuals from velocity
@@ -429,7 +443,6 @@ struct fluid_manager
     ///that way we get full res advection etc, which should maintain most of the quality
     void tick(cl::cl_gl_interop_texture* interop, cl::buffer_manager& buffers, cl::command_queue& cqueue)
     {
-
         cl::buffer* v1 = get_velocity_buf(0);
         cl::buffer* v2 = get_velocity_buf(1);
 
@@ -551,8 +564,6 @@ struct fluid_manager
         cqueue.exec("wavelet_upscale", upscale_args, wavelet_dim, {16, 16});
         #endif // UNSUCCESSFUL_UPSCALE
 
-        ///the problem is the dye advection is actually affecting the simulation
-        ///AKA BAD, REALLY BAD
         advect_quantity_with(dye, which_dye, cqueue, timestep_s, dye_dim, get_velocity_buf(0), true);
 
         #ifdef UNSUCCESSFUL_UPSCALE
@@ -567,7 +578,24 @@ struct fluid_manager
 
         interop->acquire(cqueue);
 
-        cl::buffer* debug_velocity = ndye;
+        /*cl::buffer* debug_velocity = ndye;
+
+        cl::args debug;
+        debug.push_back(debug_velocity);
+        debug.push_back(interop);
+        debug.push_back(boundaries);
+
+        cqueue.exec("fluid_render", debug, dye_dim, {16, 16});*/
+
+        //handle_particles(interop, program, cqueue, timestep_s);
+        handle_falling_sand(interop, cqueue, timestep_s);
+    }
+
+    void render_fluid(cl::cl_gl_interop_texture* interop, cl::command_queue& cqueue)
+    {
+        interop->acquire(cqueue);
+
+        cl::buffer* debug_velocity = dye[which_dye];
 
         cl::args debug;
         debug.push_back(debug_velocity);
@@ -575,9 +603,6 @@ struct fluid_manager
         debug.push_back(boundaries);
 
         cqueue.exec("fluid_render", debug, dye_dim, {16, 16});
-
-        //handle_particles(interop, program, cqueue, timestep_s);
-        handle_falling_sand(interop, cqueue, timestep_s);
     }
 };
 

@@ -154,6 +154,7 @@ int main()
         cqueue.block();*/
 
         fluid_manage.tick(interop, buffer_manage, cqueue);
+        fluid_manage.render_fluid(interop, cqueue);
 
         ///for some reason nothing shows up if we render after ticking
         ///dont understand why
@@ -166,25 +167,38 @@ int main()
 
         //lighting_manage.tick(interop, buffer_manage, cqueue, cur_mouse, fluid_manage.dye[fluid_manage.which_dye]);
 
+        if(use_cpu_physics)
+        {
+            physics.tick(elapsed_s, fluid_manage.timestep_s);
+        }
+
+        fluid_manage.render_sand(interop, cqueue);
 
         interop->gl_blit_me(0, cqueue);
 
         if(use_cpu_physics)
         {
-            physics.tick(elapsed_s, fluid_manage.timestep_s);
             physics.render(win);
         }
 
         if(key.isKeyPressed(sf::Keyboard::Escape))
             system("Pause");
 
-
         win.display();
         win.clear();
 
+        cqueue.block();
         ///TODO:
         ///should do one frame ahead shenanigans
+
+        /*interop->acquire(cqueue);
+        cl::args cargs;
+        cargs.push_back(interop);
+        cqueue.exec("clear_image", cargs, {interop->w, interop->h}, {16, 16});
+
         cqueue.block();
+
+        win.resetGLStates();*/
 
         if(use_cpu_physics)
         {
