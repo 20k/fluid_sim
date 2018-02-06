@@ -417,6 +417,8 @@ struct fluid_manager
         #define GENERATE_OCCLUSION
         #ifdef GENERATE_OCCLUSION
 
+        rendered_occlusion->acquire(cqueue);
+
         cl::args occlusion_args;
         occlusion_args.push_back(p1);
         occlusion_args.push_back(rendered_occlusion);

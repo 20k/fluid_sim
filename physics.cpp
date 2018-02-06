@@ -251,9 +251,9 @@ std::vector<vec2f> phys_cpu::physics_body::get_world_vertices()
     return ret;
 }
 
-void phys_cpu::physics_body::render(sf::RenderTarget& win)
+void phys_cpu::physics_body::render(std::vector<sf::Vertex>& out)
 {
-    std::vector<sf::Vertex> verts;
+    //std::vector<sf::Vertex> verts;
     std::vector<vec2f> world = get_world_vertices();
 
     for(int i=0; i < (int)world.size(); i++)
@@ -262,7 +262,7 @@ void phys_cpu::physics_body::render(sf::RenderTarget& win)
         vert.position = sf::Vector2f(world[i].x(), world[i].y());
         vert.color = sf::Color(col.x() * 255, col.y() * 255, col.z() * 255);
 
-        verts.push_back(vert);
+        out.push_back(vert);
     }
 
     /*sf::CircleShape circle;
@@ -271,7 +271,8 @@ void phys_cpu::physics_body::render(sf::RenderTarget& win)
 
     //win.draw(circle);
 
-    win.draw(&verts[0], verts.size(), sf::Triangles);
+    //win.draw(&verts[0], verts.size(), sf::Triangles);
+    //win.draw(&verts[0], verts.size(), sf::Triangles, state);
 }
 
 void phys_cpu::physics_body::add(btDynamicsWorld* world)
@@ -361,22 +362,12 @@ void phys_cpu::physics_rigidbodies::init(cl::context& ctx, cl::buffer_manager& b
     positions_out->alloc_bytes(sizeof(vec2f) * max_physics_vertices);
     cpu_positions.resize(max_physics_vertices*3);
 
-    /*
-    static sf::Shader shader;
-    static bool loaded_shader = false;
+    cull_shader = new sf::Shader();
+    cull_shader->loadFromFile("Shaders/cull.vglsl", "Shaders/cull.fglsl");
 
-    if(!loaded_shader)
-    {
-        shader.loadFromFile("radial.vglsl", "redblend.fglsl");
+    //shader.setUniform("windowHeight", (float)win.getSize().y);
 
-        //shader.setParameter("color", sf::Color::White);
-
-        loaded_shader = true;
-    }
-
-    shader.setUniform("windowHeight", (float)win.getSize().y);
-
-    sf::RenderStates state;
+    /*sf::RenderStates state;
     //state.blendMode = sf::BlendAdd;
     state.shader = &shader;*/
 
@@ -395,17 +386,24 @@ void phys_cpu::physics_rigidbodies::tick(double timestep_s, double fluid_timeste
     dynamicsWorld->stepSimulation(timestep_s, 10);
 }
 
-void phys_cpu::physics_rigidbodies::render(sf::RenderTarget& win)
+void phys_cpu::physics_rigidbodies::render(sf::RenderTarget& win, sf::Texture& cull_texture_backing, cl::cl_gl_interop_texture* cull_texture, cl::command_queue& cqueue)
 {
+    cull_texture->unacquire(cqueue);
+
+    cull_shader->setUniform("cull_texture", cull_texture_backing);
+
+    sf::RenderStates state;
+    state.shader = cull_shader;
+
+    std::vector<sf::Vertex> vertices;
+
     for(physics_body* pbody : elems)
     {
-        /*btTransform trans;
-        pbody->body->getMotionState()->getWorldTransform(trans);
-
-        std::cout << "sphere height: " << trans.getOrigin().getY() << std::endl;*/
-
-        pbody->render(win);
+        pbody->render(vertices);
     }
+
+    if(vertices.size() > 0)
+        win.draw(&vertices[0], vertices.size(), sf::Triangles, state);
 }
 
 void phys_cpu::physics_rigidbodies::process_gpu_reads()

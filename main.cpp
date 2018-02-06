@@ -169,68 +169,52 @@ int main()
             if(event.type == sf::Event::Closed)
                 running = false;
         }
-        #if 1
 
         if(use_cpu_physics)
             physics.issue_gpu_reads(cqueue, fluid_manage.get_velocity_buf(0), fluid_manage.physics_tex[fluid_manage.which_physics_tex], fluid_manage.velocity_to_display_ratio);
 
-        test_screen->acquire(cqueue);
+        interop->acquire(cqueue);
 
-        cl::args cargs;
-        cargs.push_back(test_screen);
-        cqueue.exec("clear_image", cargs, {test_screen->w, test_screen->h}, {16, 16});
-
-        fluid_manage.tick(test_screen, buffer_manage, cqueue);
-        fluid_manage.render_fluid(test_screen, cqueue);
+        fluid_manage.tick(interop, buffer_manage, cqueue);
+        fluid_manage.render_fluid(interop, cqueue);
 
         ///for some reason nothing shows up if we render after ticking
         ///dont understand why
 
         if(!use_cpu_physics)
         {
-            physics_gpu.render(cqueue, test_screen, circletex);
+            physics_gpu.render(cqueue, interop, circletex);
             physics_gpu.tick(elapsed_s, fluid_manage.timestep_s, fluid_manage.get_velocity_buf(0), phys_queue);
         }
 
-        //lighting_manage.tick(test_screen, buffer_manage, cqueue, cur_mouse, fluid_manage.dye[fluid_manage.which_dye]);
+        //lighting_manage.tick(interop, buffer_manage, cqueue, cur_mouse, fluid_manage.dye[fluid_manage.which_dye]);
 
         if(use_cpu_physics)
         {
             physics.tick(elapsed_s, fluid_manage.timestep_s);
         }
 
-        //fluid_manage.render_sand(test_screen, cqueue);
+        //fluid_manage.render_sand(interop, cqueue);
 
-        //test_screen->gl_blit_me(0, cqueue);
+        //interop->gl_blit_me(0, cqueue);
 
-        test_screen->unacquire(cqueue);
-        #endif // 0
 
-        cqueue.block();
-        render_tex.display();
+        fluid_manage.render_sand(interop, cqueue);
+
+        if(key.isKeyPressed(sf::Keyboard::Escape))
+            system("Pause");
+
+        interop->gl_blit_me(0, cqueue);
+        interop->acquire(cqueue); ///here for performance, not correctness
 
         ///has to be drawn on top annoyingly
         ///need to figure out a way to composite from the cpu, or
         #if 1
         if(use_cpu_physics)
         {
-            physics.render(render_tex);
+            physics.render(win, fluid_manage.rendered_occlusion_backing, fluid_manage.rendered_occlusion, cqueue);
         }
         #endif // 0
-
-        render_tex.display();
-
-        fluid_manage.render_sand(test_screen, cqueue);
-
-        if(key.isKeyPressed(sf::Keyboard::Escape))
-            system("Pause");
-
-        test_screen->unacquire(cqueue);
-
-        cqueue.block();
-        render_tex.display();
-
-        win.draw(sf::Sprite(render_tex.getTexture()));
 
         win.display();
         win.clear();

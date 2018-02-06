@@ -12,6 +12,10 @@ namespace sf
 {
     struct RenderWindow;
     struct RenderTarget;
+    struct Shader;
+    struct RenderStates;
+    struct Texture;
+    struct Vertex;
 }
 
 struct btDiscreteDynamicsWorld;
@@ -58,7 +62,7 @@ struct physics_body
     vec2f get_velocity();
 
     void tick(double timestep_s, double fluid_timestep_s);
-    void render(sf::RenderTarget& win);
+    void render(std::vector<sf::Vertex>& out);
 
     void add(btDynamicsWorld* world);
 };
@@ -73,7 +77,7 @@ struct physics_rigidbodies
 
     std::atomic_int data_written;
 
-    sf::Shader cull_shader;
+    sf::Shader* cull_shader;
 
     //volatile int data_written = 0;
     volatile int num_written = 0;
@@ -91,7 +95,7 @@ struct physics_rigidbodies
     void make_2d(btCollisionDispatcher* dispatcher);
 
     void tick(double timestep_s, double fluid_timestep_s);
-    void render(sf::RenderTarget& win);
+    void render(sf::RenderTarget& win, sf::Texture& cull_texture_backing, cl::cl_gl_interop_texture* cull_texture, cl::command_queue& cqueue);
 
     void process_gpu_reads();
     void issue_gpu_reads(cl::command_queue& cqueue, cl::buffer* velocity, cl::buffer* particle_buffer, vec2f velocity_scale);

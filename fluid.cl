@@ -1007,8 +1007,9 @@ void falling_sand_generate_occlusion(__read_only image2d_t physics_tex, __write_
 
     float gid = read_imagef(physics_tex, sam, id).x - 1;
 
-    if(gid >= 0)
-        write_imagef(occlusion_buffer, id, 1.f);
+    int occluded = gid >= 0;
+
+    write_imagef(occlusion_buffer, id, occluded);
 }
 
 __kernel
