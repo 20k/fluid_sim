@@ -418,6 +418,7 @@ struct fluid_manager
         #ifdef GENERATE_OCCLUSION
 
         rendered_occlusion->acquire(cqueue);
+        //rendered_occlusion->clear_to_zero(cqueue); ///cleared in kernel
 
         cl::args occlusion_args;
         occlusion_args.push_back(p1);

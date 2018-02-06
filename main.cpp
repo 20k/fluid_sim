@@ -137,7 +137,6 @@ int main()
 
         vec2f diff = cur_mouse - last_mouse;
 
-        #if 1
         if(mouse.isButtonPressed(sf::Mouse::Left))
         {
             fluid_manage.apply_force( cqueue, 0.1f, cur_mouse, diff);
@@ -162,7 +161,6 @@ int main()
                 }
             }
         }
-        #endif // 0
 
         while(win.pollEvent(event))
         {
@@ -194,11 +192,6 @@ int main()
             physics.tick(elapsed_s, fluid_manage.timestep_s);
         }
 
-        //fluid_manage.render_sand(interop, cqueue);
-
-        //interop->gl_blit_me(0, cqueue);
-
-
         fluid_manage.render_sand(interop, cqueue);
 
         if(key.isKeyPressed(sf::Keyboard::Escape))
@@ -209,36 +202,20 @@ int main()
 
         ///has to be drawn on top annoyingly
         ///need to figure out a way to composite from the cpu, or
-        #if 1
         if(use_cpu_physics)
         {
             physics.render(win, fluid_manage.rendered_occlusion_backing, fluid_manage.rendered_occlusion, cqueue);
         }
-        #endif // 0
 
         win.display();
         win.clear();
 
-        #if 1
         cqueue.block();
-        //render_tex.clear();
-        ///TODO:
-        ///should do one frame ahead shenanigans
-
-        /*interop->acquire(cqueue);
-        cl::args cargs;
-        cargs.push_back(interop);
-        cqueue.exec("clear_image", cargs, {interop->w, interop->h}, {16, 16});
-
-        cqueue.block();
-
-        win.resetGLStates();*/
 
         if(use_cpu_physics)
         {
             physics.process_gpu_reads();
         }
-        #endif // 0
     }
 
     return 0;
