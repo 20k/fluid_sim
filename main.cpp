@@ -21,6 +21,7 @@ int main()
 
     sf::ContextSettings settings;
     settings.antialiasingLevel = 4;
+    settings.majorVersion = 4;
 
     sf::RenderWindow win;
     win.create(sf::VideoMode(window_size.x(), window_size.y()), "Test", sf::Style::Default, settings);
@@ -187,12 +188,14 @@ int main()
 
         //lighting_manage.tick(interop, buffer_manage, cqueue, cur_mouse, fluid_manage.dye[fluid_manage.which_dye]);
 
+        fluid_manage.render_sand(interop, cqueue);
+
         if(use_cpu_physics)
         {
             physics.tick(elapsed_s, fluid_manage.timestep_s);
         }
 
-        fluid_manage.render_sand(interop, cqueue);
+        //cqueue.block();
 
         if(key.isKeyPressed(sf::Keyboard::Escape))
             system("Pause");
@@ -208,7 +211,7 @@ int main()
         }
 
         win.display();
-        win.clear();
+        //win.clear();
 
         cqueue.block();
 

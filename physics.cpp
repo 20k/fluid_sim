@@ -183,6 +183,10 @@ void phys_cpu::physics_body::tick(double timestep_s, double fluid_timestep_s)
             num_unprocessed++;
     }
 
+    float fluid_velocity_fraction = 0.01f;
+
+    body->applyCentralForce(btVector3(0, 9.8, 0));
+
     for(int i=0; i < vertices.size(); i++)
     {
         vec2f vel = unprocessed_fluid_vel[i];
@@ -207,6 +211,8 @@ void phys_cpu::physics_body::tick(double timestep_s, double fluid_timestep_s)
         ///can't do anything more intelligent until I have proper occlusion fractions
         if(!unprocessed_is_blocked[i] && num_unprocessed <= 1)
         {
+            velocity_diff = velocity_diff * fluid_velocity_fraction;
+
             body->applyImpulse(btVector3(velocity_diff.x(), velocity_diff.y(), 0), bt_local_pos);
 
             //col = {1,1,1};
@@ -318,7 +324,9 @@ void phys_cpu::physics_rigidbodies::init(cl::context& ctx, cl::buffer_manager& b
 
     dynamicsWorld = new btDiscreteDynamicsWorld(dispatcher, broadphase, solver, collisionConfiguration);
 
-    dynamicsWorld->setGravity(btVector3(0, -9.8, 0));
+    //dynamicsWorld->setGravity(btVector3(0, 9.8, 0));
+    dynamicsWorld->setGravity(btVector3(0, 0, 0));
+
     btCollisionShape* groundShape = new btStaticPlaneShape(btVector3(0, 1, 0), 1);
 
 
@@ -553,6 +561,8 @@ void phys_cpu::physics_rigidbodies::issue_gpu_reads(cl::command_queue& cqueue, c
 
     #define SUPER_ASYNC
     #ifndef SUPER_ASYNC
+    ///this is the conceptual pipeline of what happens on the completion callback chain
+    ///however it is quite slow, if sadly drastically simpler
     cl::args args;
     args.push_back(velocity);
     args.push_back(to_read_positions);
