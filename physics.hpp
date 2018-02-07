@@ -33,6 +33,7 @@ namespace phys_cpu
 struct physics_body
 {
     std::vector<vec2f> vertices;
+    std::vector<vec2f> physics_vertices;
     vec2f local_centre;
     vec3f col = {1,1,1};
 
@@ -53,6 +54,7 @@ struct physics_body
 
     std::vector<vec2f> decompose_centrally(const std::vector<vec2f>& vert_in);
     std::vector<vec2f> get_world_vertices();
+    std::vector<vec2f> get_world_physics_vertices();
 
     void init_sphere(float mass, float rad, vec3f start_pos = {0,0,0}, float angle = 0.f);
     void init_rectangle(float mass, vec3f half_extents, vec3f start_pos = {0,0,0}, float angle = 0.f);

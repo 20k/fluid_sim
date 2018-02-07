@@ -68,6 +68,8 @@ void phys_cpu::physics_body::init_sphere(float mass, float rad, vec3f start_pos,
         vertices.push_back({vert.x - rad, vert.y - rad});
     }
 
+    physics_vertices = vertices;
+
     vertices = decompose_centrally(vertices);
 
     init(mass, shape, start_pos, angle);
@@ -94,6 +96,7 @@ void phys_cpu::physics_body::init_rectangle(float mass, vec3f half_extents, vec3
     vertices.push_back(verts[3]);
     vertices.push_back(verts[2]);
 
+    physics_vertices = vertices;
 
     vertices = decompose_centrally(vertices);
 
@@ -132,8 +135,10 @@ void phys_cpu::physics_body::init(float mass, btConvexShape* shape_3d, vec3f sta
     body->setLinearFactor(btVector3(1, 1, 0));
     body->setAngularFactor(btVector3(0, 0, 1));
 
-    unprocessed_fluid_vel.resize(vertices.size());
-    unprocessed_is_blocked.resize(vertices.size());
+    //physics_vertices = vertices;
+
+    unprocessed_fluid_vel.resize(physics_vertices.size());
+    unprocessed_is_blocked.resize(physics_vertices.size());
 
     //body->setRestitution(1.f);
 }
@@ -183,24 +188,26 @@ void phys_cpu::physics_body::tick(double timestep_s, double fluid_timestep_s)
 
     int num_unprocessed = 0;
 
-    for(int i=0; i < vertices.size(); i++)
+    for(int i=0; i < physics_vertices.size(); i++)
     {
         if(unprocessed_is_blocked[i])
             num_unprocessed++;
     }
 
+    //printf("%i num\n", num_unprocessed);
+
     float fluid_velocity_fraction = 0.01f;
 
     body->applyCentralForce(btVector3(0, 9.8, 0));
 
-    for(int i=0; i < vertices.size(); i++)
+    for(int i=0; i < physics_vertices.size(); i++)
     {
         vec2f vel = unprocessed_fluid_vel[i];
         vel.y() = -vel.y();
 
         vec2f target = vel * (float)(fluid_timestep_s / timestep_s);
 
-        vec2f local_pos = vertices[i];
+        vec2f local_pos = physics_vertices[i];
 
         btVector3 bt_local_pos = btVector3(local_pos.x(), local_pos.y(), 0.f);
 
@@ -209,7 +216,7 @@ void phys_cpu::physics_body::tick(double timestep_s, double fluid_timestep_s)
 
         vec2f velocity_diff = (target - global_vel) * current_mass;
 
-        velocity_diff = velocity_diff / (float)vertices.size();
+        velocity_diff = velocity_diff / (float)physics_vertices.size();
 
         ///ALERT: TODO: HACK
         ///if there's only one corner in the ground, we process fluid
@@ -220,17 +227,41 @@ void phys_cpu::physics_body::tick(double timestep_s, double fluid_timestep_s)
             velocity_diff = velocity_diff * fluid_velocity_fraction;
 
             body->applyImpulse(btVector3(velocity_diff.x(), velocity_diff.y(), 0), bt_local_pos);
-
-            //col = {1,1,1};
         }
 
         if(unprocessed_is_blocked[i] && num_unprocessed > 0)
         {
-            vec2f to_remove = -global_vel / (float)num_unprocessed;// / (float)vertices.size();
+            //vec2f to_remove = -global_vel / (float)physics_vertices.size();
+            vec2f to_remove = -global_vel / (float)num_unprocessed;// / (float)physics_vertices.size();
+
+            to_remove = to_remove * 0.5f;
 
             body->applyImpulse(btVector3(to_remove.x(), to_remove.y(), 0), bt_local_pos);
+        }
 
-            //col = {1, 0, 0};
+        if(num_unprocessed == 0)
+        {
+            col = {1,1,1};
+        }
+
+        if(num_unprocessed == 1)
+        {
+            col = {1, 0, 0};
+        }
+
+        if(num_unprocessed == 2)
+        {
+            col = {0, 0, 1};
+        }
+
+        if(num_unprocessed == 3)
+        {
+            col = {0, 1, 0};
+        }
+
+        if(num_unprocessed >= 4)
+        {
+            col = {1, 0, 1};
         }
 
         unprocessed_fluid_vel[i] = {0,0};
@@ -253,6 +284,31 @@ std::vector<vec2f> phys_cpu::physics_body::get_world_vertices()
     for(int i=0; i < (int)vertices.size(); i++)
     {
         vec2f local_pos = vertices[i];
+
+        vec3f transformed_local = rot_quat({local_pos.x(), local_pos.y(), 0.f}, q);
+        vec2f global_pos = transformed_local.xy() + (vec2f){pos.getX(), pos.getY()};
+
+        ret.push_back(global_pos);
+    }
+
+    return ret;
+}
+
+std::vector<vec2f> phys_cpu::physics_body::get_world_physics_vertices()
+{
+    btTransform trans;
+    body->getMotionState()->getWorldTransform(trans);
+
+    btVector3 pos = trans.getOrigin();
+    btQuaternion rotation = trans.getRotation();
+
+    quat q = convert_from_bullet_quaternion(rotation);
+
+    std::vector<vec2f> ret;
+
+    for(int i=0; i < (int)physics_vertices.size(); i++)
+    {
+        vec2f local_pos = physics_vertices[i];
 
         vec3f transformed_local = rot_quat({local_pos.x(), local_pos.y(), 0.f}, q);
         vec2f global_pos = transformed_local.xy() + (vec2f){pos.getX(), pos.getY()};
@@ -564,7 +620,7 @@ void phys_cpu::physics_rigidbodies::issue_gpu_reads(cl::command_queue& cqueue, c
 
     for(physics_body* pbody : elems)
     {
-        std::vector<vec2f> pos = pbody->get_world_vertices();
+        std::vector<vec2f> pos = pbody->get_world_physics_vertices();
 
         for(vec2f& i : pos)
         {

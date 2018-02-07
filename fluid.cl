@@ -515,12 +515,10 @@ void fluid_fetch_velocities(__read_only image2d_t velocity, __read_only image2d_
     int b3 = read_imagef(particles_in, sam_near, pos + (float2){0, 1}).x - 1;
     int b4 = read_imagef(particles_in, sam_near, pos - (float2){0, 1}).x - 1;
 
-    float4 val = read_imagef(velocity, sam, pos);
-
     int found_gid = blocked.x - 1;
-
     int is_blocked = found_gid >= 0 && b1 >= 0 && b2 >= 0 && b3 >= 0 && b4 >= 0;
 
+    float4 val = read_imagef(velocity, sam, pos);
     out[gid*3 + 0] = val.x;
     out[gid*3 + 1] = val.y;
     out[gid*3 + 2] = is_blocked;
