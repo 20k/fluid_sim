@@ -54,9 +54,9 @@ struct physics_body
     std::vector<vec2f> decompose_centrally(const std::vector<vec2f>& vert_in);
     std::vector<vec2f> get_world_vertices();
 
-    void init_sphere(float mass, float rad, vec3f start_pos = {0,0,0});
-    void init_rectangle(float mass, vec3f half_extents, vec3f start_pos = {0,0,0});
-    void init(float mass, btConvexShape* shape_3d, vec3f start_pos = {0,0,0});
+    void init_sphere(float mass, float rad, vec3f start_pos = {0,0,0}, float angle = 0.f);
+    void init_rectangle(float mass, vec3f half_extents, vec3f start_pos = {0,0,0}, float angle = 0.f);
+    void init(float mass, btConvexShape* shape_3d, vec3f start_pos = {0,0,0}, float angle = 0.f);
 
     vec2f get_pos();
     vec2f get_velocity();
@@ -87,8 +87,10 @@ struct physics_rigidbodies
 
     void init(cl::context& ctx, cl::buffer_manager& buffers);
 
-    physics_body* make_sphere(float mass, float rad, vec3f start_pos = {0,0,0});
-    physics_body* make_rectangle(float mass, vec3f half_extents, vec3f start_pos = {0,0,0});
+    physics_body* make_sphere(float mass, float rad, vec3f start_pos = {0,0,0}, float angle = 0.f);
+    physics_body* make_rectangle(float mass, vec3f half_extents, vec3f start_pos = {0,0,0}, float angle = 0.f);
+
+    void register_user_physics_body(vec2f start, vec2f finish);
 
     btDiscreteDynamicsWorld* dynamicsWorld;
 

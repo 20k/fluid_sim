@@ -101,6 +101,7 @@
 		<Unit filename="physics.hpp" />
 		<Unit filename="physics_gpu.cpp" />
 		<Unit filename="physics_gpu.hpp" />
+		<Unit filename="util.hpp" />
 		<Extensions>
 			<code_completion />
 			<envvars />

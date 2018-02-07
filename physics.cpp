@@ -54,7 +54,7 @@ std::vector<vec2f> phys_cpu::physics_body::decompose_centrally(const std::vector
     return decomp;
 }
 
-void phys_cpu::physics_body::init_sphere(float mass, float rad, vec3f start_pos)
+void phys_cpu::physics_body::init_sphere(float mass, float rad, vec3f start_pos, float angle)
 {
     btSphereShape* shape = new btSphereShape(rad);
 
@@ -70,10 +70,10 @@ void phys_cpu::physics_body::init_sphere(float mass, float rad, vec3f start_pos)
 
     vertices = decompose_centrally(vertices);
 
-    init(mass, shape, start_pos);
+    init(mass, shape, start_pos, angle);
 }
 
-void phys_cpu::physics_body::init_rectangle(float mass, vec3f half_extents, vec3f start_pos)
+void phys_cpu::physics_body::init_rectangle(float mass, vec3f half_extents, vec3f start_pos, float angle)
 {
     btBox2dShape* shape = new btBox2dShape(btVector3(half_extents.x(), half_extents.y(), half_extents.z()));
 
@@ -97,13 +97,19 @@ void phys_cpu::physics_body::init_rectangle(float mass, vec3f half_extents, vec3
 
     vertices = decompose_centrally(vertices);
 
-    init(mass, shape, start_pos);
+    init(mass, shape, start_pos, angle);
 }
 
-void phys_cpu::physics_body::init(float mass, btConvexShape* shape_3d, vec3f start_pos)
+void phys_cpu::physics_body::init(float mass, btConvexShape* shape_3d, vec3f start_pos, float angle)
 {
+    quat q;
+    q.load_from_axis_angle({0, 0, 1, angle});
+
+    btQuaternion start_rot(q.q.x(), q.q.y(), q.q.z(), q.q.w());
+
+
     btDefaultMotionState* fallMotionState =
-        new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1), btVector3(start_pos.x(), start_pos.y(), start_pos.z())));
+        new btDefaultMotionState(btTransform(start_rot, btVector3(start_pos.x(), start_pos.y(), start_pos.z())));
 
     btConvexShape* shape = new btConvex2dShape(shape_3d);
 
@@ -220,7 +226,7 @@ void phys_cpu::physics_body::tick(double timestep_s, double fluid_timestep_s)
 
         if(unprocessed_is_blocked[i] && num_unprocessed > 0)
         {
-            vec2f to_remove = -global_vel / num_unprocessed;// / (float)vertices.size();
+            vec2f to_remove = -global_vel / (float)num_unprocessed;// / (float)vertices.size();
 
             body->applyImpulse(btVector3(to_remove.x(), to_remove.y(), 0), bt_local_pos);
 
@@ -276,26 +282,44 @@ void phys_cpu::physics_body::add(btDynamicsWorld* world)
     world->addRigidBody(body);
 }
 
-phys_cpu::physics_body* phys_cpu::physics_rigidbodies::make_sphere(float mass, float rad, vec3f start_pos)
+phys_cpu::physics_body* phys_cpu::physics_rigidbodies::make_sphere(float mass, float rad, vec3f start_pos, float angle)
 {
     physics_body* pbody = new physics_body(dynamicsWorld);
 
-    pbody->init_sphere(mass, rad, start_pos);
+    pbody->init_sphere(mass, rad, start_pos, angle);
 
     elems.push_back(pbody);
 
     return pbody;
 }
 
-phys_cpu::physics_body* phys_cpu::physics_rigidbodies::make_rectangle(float mass, vec3f half_extents, vec3f start_pos)
+phys_cpu::physics_body* phys_cpu::physics_rigidbodies::make_rectangle(float mass, vec3f half_extents, vec3f start_pos, float angle)
 {
     physics_body* pbody = new physics_body(dynamicsWorld);
 
-    pbody->init_rectangle(mass, half_extents, start_pos);
+    pbody->init_rectangle(mass, half_extents, start_pos, angle);
 
     elems.push_back(pbody);
 
     return pbody;
+}
+
+void phys_cpu::physics_rigidbodies::register_user_physics_body(vec2f start, vec2f finish)
+{
+    float length = (finish - start).length();
+
+    if(length < 0.0001f)
+        return;
+
+    float width = 5.f;
+
+    vec2f avg = (finish + start)/2.f;
+
+    float angle = (finish - start).angle();
+
+    phys_cpu::physics_body* body = make_rectangle(1.f, {length/2.f, width/2.f, 0.f}, {avg.x(), avg.y(), 0.f}, angle);
+
+    body->add(dynamicsWorld);
 }
 
 void phys_cpu::physics_rigidbodies::make_2d(btCollisionDispatcher* dispatcher)

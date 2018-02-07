@@ -7,6 +7,7 @@
 #include "lighting.hpp"
 #include "physics.hpp"
 #include "physics_gpu.hpp"
+#include "util.hpp"
 
 extern int b3OpenCLUtils_clewInit();
 
@@ -116,6 +117,9 @@ int main()
     PFNGLBINDFRAMEBUFFEREXTPROC glBindFramebufferEXT = (PFNGLBINDFRAMEBUFFEREXTPROC)wglGetProcAddress("glBindFramebufferEXT");
     glBindFramebufferEXT(GL_DRAW_FRAMEBUFFER, 0);
 
+    vec2f start_pos = {0,0};
+    bool middle_going = false;
+
     while(running)
     {
         sf::Event event;
@@ -135,7 +139,7 @@ int main()
 
         if(mouse.isButtonPressed(sf::Mouse::Left))
         {
-            fluid_manage.apply_force( cqueue, 0.1f, cur_mouse, diff);
+            fluid_manage.apply_force(cqueue, 0.1f, cur_mouse, diff);
         }
 
         if(mouse.isButtonPressed(sf::Mouse::Right))
@@ -145,7 +149,7 @@ int main()
             float max_diff = ceil(mdiff.largest_elem());
 
             if(max_diff == 0)
-                fluid_manage.write_boundary( cqueue, cur_mouse, 0.f);
+                fluid_manage.write_boundary(cqueue, cur_mouse, 0.f);
             else
             {
                 vec2f step = mdiff / max_diff;
@@ -153,9 +157,24 @@ int main()
 
                 for(int i=0; i < max_diff + 1; i++, start += step)
                 {
-                    fluid_manage.write_boundary( cqueue, start, 0.f);
+                    fluid_manage.write_boundary(cqueue, start, 0.f);
                 }
             }
+        }
+
+        if(ONCE_MACRO(sf::Mouse::Middle))
+        {
+            start_pos = cur_mouse;
+            middle_going = true;
+        }
+
+        if(!mouse.isButtonPressed(sf::Mouse::Middle) && middle_going)
+        {
+            vec2f end_pos = cur_mouse;
+
+            physics.register_user_physics_body(start_pos, end_pos);
+
+            middle_going = false;
         }
 
         while(win.pollEvent(event))
