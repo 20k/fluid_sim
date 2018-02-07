@@ -194,12 +194,14 @@ int main()
 
         cl::cl_gl_interop_texture* to_render = screen_textures[current_screen];
 
+        ///render LAST frame
         to_render->gl_blit_me(0, cqueue);
         to_render->acquire(cqueue); ///here for performance, not correctness
 
+        ///need to use last frames occlusion backing
         if(use_cpu_physics)
         {
-            physics.render(win, fluid_manage.rendered_occlusion_backing, fluid_manage.rendered_occlusion, cqueue);
+            physics.render(win, fluid_manage.rendered_occlusion_backing[fluid_manage.which_occlusion], fluid_manage.rendered_occlusion[fluid_manage.which_occlusion], cqueue);
         }
 
         win.display();

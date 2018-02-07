@@ -38,8 +38,9 @@ struct fluid_manager
     int which_physics_tex = 0;
     std::vector<physics_particle> cpu_physics_particles;
 
-    sf::Texture rendered_occlusion_backing;
-    cl::cl_gl_interop_texture* rendered_occlusion;
+    sf::Texture rendered_occlusion_backing[2];
+    cl::cl_gl_interop_texture* rendered_occlusion[2];
+    int which_occlusion = 0;
 
     cl::buffer* noise;
     cl::buffer* w_of;
@@ -93,7 +94,8 @@ struct fluid_manager
         w_of = buffers.fetch<cl::buffer>(ctx, nullptr);
         upscaled_advected_velocity = buffers.fetch<cl::buffer>(ctx, nullptr);
 
-        rendered_occlusion = buffers.fetch<cl::cl_gl_interop_texture>(ctx, nullptr);
+        rendered_occlusion[0] = buffers.fetch<cl::cl_gl_interop_texture>(ctx, nullptr);
+        rendered_occlusion[1] = buffers.fetch<cl::cl_gl_interop_texture>(ctx, nullptr);
 
         std::vector<vec4f> zero_data;
         std::vector<vec4f> dye_concentrates;
@@ -200,14 +202,26 @@ struct fluid_manager
         physics_tex[0]->alloc_img(cqueue, zero_data, velocity_dim, CL_RG, CL_FLOAT);
         physics_tex[1]->alloc_img(cqueue, zero_data, velocity_dim, CL_RG, CL_FLOAT);
 
-        rendered_occlusion_backing.create(dye_dim.x(), dye_dim.y());
-        rendered_occlusion->create_from_texture(rendered_occlusion_backing.getNativeHandle());
+        rendered_occlusion_backing[0].create(dye_dim.x(), dye_dim.y());
+        rendered_occlusion_backing[1].create(dye_dim.x(), dye_dim.y());
+        rendered_occlusion[0]->create_from_texture(rendered_occlusion_backing[0].getNativeHandle());
+        rendered_occlusion[1]->create_from_texture(rendered_occlusion_backing[1].getNativeHandle());
 
         cl::args w_of_args;
         w_of_args.push_back(noise);
         w_of_args.push_back(w_of);
 
         cqueue.exec("wavelet_w_of", w_of_args, velocity_dim, {16, 16});
+    }
+
+    cl::cl_gl_interop_texture* get_occlusion()
+    {
+        return rendered_occlusion[which_occlusion];
+    }
+
+    sf::Texture& get_occlusion_back()
+    {
+        return rendered_occlusion_backing[which_occlusion];
     }
 
     cl::buffer* get_velocity_buf(int offset)
@@ -417,14 +431,17 @@ struct fluid_manager
         #define GENERATE_OCCLUSION
         #ifdef GENERATE_OCCLUSION
 
-        rendered_occlusion->acquire(cqueue);
-        //rendered_occlusion->clear_to_zero(cqueue); ///cleared in kernel
+        cl::cl_gl_interop_texture* occlusion = get_occlusion();
+
+        occlusion->acquire(cqueue);
 
         cl::args occlusion_args;
         occlusion_args.push_back(p1);
-        occlusion_args.push_back(rendered_occlusion);
+        occlusion_args.push_back(occlusion);
 
         cqueue.exec("falling_sand_generate_occlusion", occlusion_args, dye_dim, {16, 16});
+
+        which_occlusion = (which_occlusion + 1) % 2;
 
         #endif // GENERATE_OCCLUSION
 
