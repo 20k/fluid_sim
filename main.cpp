@@ -45,11 +45,17 @@ int main()
 
     cl::buffer_manager buffer_manage;
 
+    cl::cl_gl_interop_texture* screen_textures[2];
 
-    cl::cl_gl_interop_texture* interop = buffer_manage.fetch<cl::cl_gl_interop_texture>(ctx, nullptr);
-    interop->create_renderbuffer(win.getSize().x, win.getSize().y);
-    interop->acquire(cqueue);
+    for(int i=0; i < 2; i++)
+    {
+        screen_textures[i] = buffer_manage.fetch<cl::cl_gl_interop_texture>(ctx, nullptr);
+        screen_textures[i]->create_renderbuffer(win.getSize().x, win.getSize().y);
+        screen_textures[i]->acquire(cqueue);
+    }
 
+    int next_screen = 1;
+    int current_screen = 0;
 
     vec2i screen_dim = {win.getSize().x, win.getSize().y};
 
@@ -161,6 +167,8 @@ int main()
         if(use_cpu_physics)
             physics.issue_gpu_reads(cqueue, fluid_manage.get_velocity_buf(0), fluid_manage.physics_tex[fluid_manage.which_physics_tex], fluid_manage.velocity_to_display_ratio);
 
+        cl::cl_gl_interop_texture* interop = screen_textures[next_screen];
+
         interop->acquire(cqueue);
 
         fluid_manage.tick(interop, buffer_manage, cqueue);
@@ -184,8 +192,10 @@ int main()
         if(key.isKeyPressed(sf::Keyboard::Escape))
             system("Pause");
 
-        interop->gl_blit_me(0, cqueue);
-        interop->acquire(cqueue); ///here for performance, not correctness
+        cl::cl_gl_interop_texture* to_render = screen_textures[current_screen];
+
+        to_render->gl_blit_me(0, cqueue);
+        to_render->acquire(cqueue); ///here for performance, not correctness
 
         if(use_cpu_physics)
         {
@@ -201,6 +211,9 @@ int main()
         {
             physics.process_gpu_reads();
         }
+
+        current_screen = (current_screen + 1) % 2;
+        next_screen = (next_screen + 1) % 2;
     }
 
     return 0;
