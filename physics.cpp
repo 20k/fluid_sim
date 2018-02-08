@@ -134,6 +134,7 @@ void phys_cpu::physics_body::init(float mass, btConvexShape* shape_3d, vec3f sta
 
     body->setLinearFactor(btVector3(1, 1, 0));
     body->setAngularFactor(btVector3(0, 0, 1));
+    body->setActivationState(DISABLE_DEACTIVATION);
 
     //physics_vertices = vertices;
 
@@ -410,7 +411,7 @@ void phys_cpu::physics_rigidbodies::register_user_physics_body(vec2f start, vec2
     if(length < 0.0001f)
         return;
 
-    float width = 60.f;
+    float width = 5.f;
 
     vec2f avg = (finish + start)/2.f;
 
