@@ -198,7 +198,7 @@ void phys_cpu::physics_body::tick(double timestep_s, double fluid_timestep_s)
 
     float fluid_velocity_fraction = 0.01f;
 
-    body->applyCentralForce(btVector3(0, 9.8, 0));
+    //body->applyCentralForce(btVector3(0, 9.8, 0));
 
     for(int i=0; i < physics_vertices.size(); i++)
     {
@@ -212,6 +212,14 @@ void phys_cpu::physics_body::tick(double timestep_s, double fluid_timestep_s)
         btVector3 bt_local_pos = btVector3(local_pos.x(), local_pos.y(), 0.f);
 
         btVector3 global_velocity_in_local_point = body->getVelocityInLocalPoint(bt_local_pos);
+
+        btVector3 global_velocity = body->getLinearVelocity();
+        btVector3 global_angular = body->getVelocityInLocalPoint(bt_local_pos) - global_velocity;
+
+        ///somethign to do with getvelocityinlocalpoint is completely broken, with the way i understand it
+        //btVector3 angular_velocity = body->getAngularVelocity();
+
+        //btVector3 global_velocity_in_local_point = body->getLinearVelocity();
         vec2f global_vel = {global_velocity_in_local_point.getX(), global_velocity_in_local_point.getY()};
 
         vec2f velocity_diff = (target - global_vel) * current_mass;
@@ -222,22 +230,121 @@ void phys_cpu::physics_body::tick(double timestep_s, double fluid_timestep_s)
         ///if there's only one corner in the ground, we process fluid
         ///if there's more than one corner in the ground, negative velocity
         ///can't do anything more intelligent until I have proper occlusion fractions
-        if(!unprocessed_is_blocked[i] && num_unprocessed <= 1)
+        if(!unprocessed_is_blocked[i] && num_unprocessed <= 0)
         {
             velocity_diff = velocity_diff * fluid_velocity_fraction;
 
             body->applyImpulse(btVector3(velocity_diff.x(), velocity_diff.y(), 0), bt_local_pos);
         }
+    }
 
-        if(unprocessed_is_blocked[i] && num_unprocessed > 0)
+    for(int i=0; i < physics_vertices.size(); i++)
+    {
+        #if 0
+        if(unprocessed_is_blocked[i] && num_unprocessed > 0 && num_unprocessed == 1)
         {
             //vec2f to_remove = -global_vel / (float)physics_vertices.size();
-            vec2f to_remove = -global_vel / (float)num_unprocessed;// / (float)physics_vertices.size();
+            //vec2f to_remove = -global_vel / (float)num_unprocessed;// / (float)physics_vertices.size();
 
-            to_remove = to_remove * 0.5f;
+            vec2f to_remove = -global_vel / num_unprocessed;
 
-            body->applyImpulse(btVector3(to_remove.x(), to_remove.y(), 0), bt_local_pos);
+            //to_remove = to_remove * timestep_s;
+
+            //to_remove = to_remove;
+
+            ///so. This would appear to show the force is in the wrong direction
+            //body->applyForce(btVector3(to_remove.x(), to_remove.y(), 0), bt_local_pos);
+
+            //body->applyCentralImpulse(btVector3(to_remove.x(), to_remove.y(), 0));
+
+            auto cpos = body->getLinearVelocity();
+            auto cang = body->getAngularVelocity();
+
+            //std::cout << "Current info: " << cpos.getX() << " " << cpos.getY() << " ang " << cang.getZ() << std::endl;
+
+            ///ok, figured out the problem
+            ///we actually don't want to set angular velocity to 0, or even touch it
+            ///want to set... linear velocity to 0, but keep angular velocity
+            //body->applyImpulse(btVector3(to_remove.x(), to_remove.y(), 0), bt_local_pos);
+
+            //vec2f friction = {-global_velocity.getX(), -global_velocity.getY()};
+
+            vec2f friction = -global_vel;
+
+            //vec2f up = projection(friction, {0, -1});
+            //vec2f side = projection(friction, {1, 0});
+
+            //friction = friction * 0.1f;
+
+            ///fuk
+            vec2f normal = {0, -1};
+
+            float normal_force = 1.f;
+
+            vec2f perp = perpendicular(normal);
+
+            float perp_force = 1.f;
+
+            ///say that com -> contact is a vector
+            ///and contact is a fulcrum
+            ///if we were to just rotate about the fulcrum, angular momentum
+            ///would be proportional to velocity right
+            ///about the point there would be no linear velocity, only angular momentum
+            ///so what we really need to do is work out the angular momentum at that point
+            ///work out the forces involved, subtract
+            ///and then work out the linear and angular momentum at the centre again
+            ///but... this is basically what i'm doing currently
+
+
+            body->applyImpulse({friction.x(), friction.y(), 0.f}, bt_local_pos);
+            //body->applyImpulse({side.x(), side.y(), 0.f}, bt_local_pos);
+
+            //body->applyImpulse()
+
+            //std::cout << "tr " << to_remove << std::endl;
         }
+        #endif // 0
+
+        #if 1
+        if(unprocessed_is_blocked[i] && num_unprocessed > 0)
+        {
+            float remove_frac = num_unprocessed / 2;
+
+            if(num_unprocessed > 2)
+                remove_frac = 1;
+
+            remove_frac = 1.f;
+
+            float velocity_remove = 1.f;
+            float angular_remove = 1.f;
+
+            //auto cvel = body->getLinearVelocity();
+            //auto cang = body->getAngularVelocity();
+
+            vec3f cvel = bt_xyz_to_vec(body->getLinearVelocity());
+            vec3f cang = bt_xyz_to_vec(body->getAngularVelocity());
+
+            vec3f to_remove_velocity = -velocity_remove * cvel * remove_frac;
+            vec3f to_remove_angular = -angular_remove * cang * remove_frac;
+
+            std::cout << "to rem vel " << to_remove_velocity << std::endl;
+            std::cout << "to rem ang " << to_remove_angular << std::endl;
+
+            btMatrix3x3 in_tensor = body->getInvInertiaTensorWorld().inverse();
+
+            to_remove_angular = bt_xyz_to_vec(in_tensor * btVector3(to_remove_angular.x(), to_remove_angular.y(), to_remove_angular.z()));
+
+            std::cout << std::endl;
+
+            body->applyCentralImpulse(btVector3(to_remove_velocity.x(), to_remove_velocity.y(), 0.f));
+            body->applyTorqueImpulse(btVector3(to_remove_angular.x(), to_remove_angular.y(), to_remove_angular.z()));
+
+            auto nvel = body->getLinearVelocity();
+            auto nang = body->getAngularVelocity();
+
+            std::cout << "New " << nvel.getX() << " " << nvel.getY() << " " << nang.getZ() << std::endl;
+        }
+        #endif // 0
 
         if(num_unprocessed == 0)
         {
@@ -267,6 +374,11 @@ void phys_cpu::physics_body::tick(double timestep_s, double fluid_timestep_s)
         unprocessed_fluid_vel[i] = {0,0};
         unprocessed_is_blocked[i] = 0;
     }
+
+    //auto pos = body->getLinearVelocity();
+    //auto ang = body->getAngularVelocity();
+
+    //std::cout << pos.getX() << " " << pos.getY() << " ang " << ang.getZ() << std::endl;
 }
 
 std::vector<vec2f> phys_cpu::physics_body::get_world_vertices()
@@ -367,7 +479,7 @@ void phys_cpu::physics_rigidbodies::register_user_physics_body(vec2f start, vec2
     if(length < 0.0001f)
         return;
 
-    float width = 5.f;
+    float width = 60.f;
 
     vec2f avg = (finish + start)/2.f;
 
@@ -423,7 +535,7 @@ void phys_cpu::physics_rigidbodies::init(cl::context& ctx, cl::buffer_manager& b
     //fall.init_sphere(1.f, {0, 50, 0});
 
     //for(int i=0; i < 509; i++)
-    for(int y=0; y < 31; y++)
+    for(int y=0; y < 0; y++)
     for(int x=0; x < 31; x++)
     {
         //physics_body* pb1 = make_sphere(1.f, 5.f, {500 + 5 * x, 50 + y * 5, 0});
@@ -461,7 +573,7 @@ void phys_cpu::physics_rigidbodies::tick(double timestep_s, double fluid_timeste
         pbody->tick(timestep_s, fluid_timestep_s);
     }
 
-    dynamicsWorld->stepSimulation(timestep_s, 10);
+    dynamicsWorld->stepSimulation(timestep_s, 10, 1/120.f);
 }
 
 void phys_cpu::physics_rigidbodies::render(sf::RenderTarget& win, sf::Texture& cull_texture_backing, cl::cl_gl_interop_texture* cull_texture, cl::command_queue& cqueue)
