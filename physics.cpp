@@ -196,9 +196,9 @@ void phys_cpu::physics_body::tick(double timestep_s, double fluid_timestep_s)
 
     //printf("%i num\n", num_unprocessed);
 
-    float fluid_velocity_fraction = 0.01f;
+    float fluid_velocity_fraction = 0.001f;
 
-    //body->applyCentralForce(btVector3(0, 9.8, 0));
+    body->applyCentralForce(btVector3(0, 9.8, 0));
 
     for(int i=0; i < physics_vertices.size(); i++)
     {
@@ -246,12 +246,13 @@ void phys_cpu::physics_body::tick(double timestep_s, double fluid_timestep_s)
 
             //float remove_frac = 0.01f * num_unprocessed;
 
-            float remove_frac = 0.01f;
+            float remove_frac = 0.05f;
 
             if(num_unprocessed > 1)
                 remove_frac = 0.5f;
 
-            //remove_frac = 1.f;
+            if(num_unprocessed > 2)
+                remove_frac = 1.f;
 
             float velocity_remove = 1.f;
             float angular_remove = 1.f;
@@ -274,6 +275,7 @@ void phys_cpu::physics_body::tick(double timestep_s, double fluid_timestep_s)
             //auto nang = body->getAngularVelocity();
         }
 
+        #ifdef DEBUG_STATE
         if(num_unprocessed == 0)
         {
             col = {1,1,1};
@@ -298,6 +300,7 @@ void phys_cpu::physics_body::tick(double timestep_s, double fluid_timestep_s)
         {
             col = {1, 0, 1};
         }
+        #endif
 
         unprocessed_fluid_vel[i] = {0,0};
         unprocessed_is_blocked[i] = 0;
@@ -463,7 +466,7 @@ void phys_cpu::physics_rigidbodies::init(cl::context& ctx, cl::buffer_manager& b
     //fall.init_sphere(1.f, {0, 50, 0});
 
     //for(int i=0; i < 509; i++)
-    for(int y=0; y < 0; y++)
+    for(int y=0; y < 31; y++)
     for(int x=0; x < 31; x++)
     {
         //physics_body* pb1 = make_sphere(1.f, 5.f, {500 + 5 * x, 50 + y * 5, 0});
