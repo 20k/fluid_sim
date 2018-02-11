@@ -99,7 +99,7 @@ struct physics_rigidbodies
     void make_2d(btCollisionDispatcher* dispatcher);
 
     void tick(double timestep_s, double fluid_timestep_s);
-    void render(sf::RenderTarget& win, sf::Texture& cull_texture_backing, cl::cl_gl_interop_texture* cull_texture, cl::command_queue& cqueue);
+    void render(sf::RenderTarget& win, cl::cl_gl_interop_texture* cull_texture, cl::command_queue& cqueue);
 
     void process_gpu_reads();
     void issue_gpu_reads(cl::command_queue& cqueue, cl::buffer* velocity, cl::buffer* particle_buffer, vec2f velocity_scale);

@@ -134,7 +134,7 @@ void phys_cpu::physics_body::init(float mass, btConvexShape* shape_3d, vec3f sta
 
     body->setLinearFactor(btVector3(1, 1, 0));
     body->setAngularFactor(btVector3(0, 0, 1));
-    body->setActivationState(DISABLE_DEACTIVATION);
+    //body->setActivationState(DISABLE_DEACTIVATION);
 
     //physics_vertices = vertices;
 
@@ -508,11 +508,11 @@ void phys_cpu::physics_rigidbodies::tick(double timestep_s, double fluid_timeste
     dynamicsWorld->stepSimulation(timestep_s, 10, 1/120.f);
 }
 
-void phys_cpu::physics_rigidbodies::render(sf::RenderTarget& win, sf::Texture& cull_texture_backing, cl::cl_gl_interop_texture* cull_texture, cl::command_queue& cqueue)
+void phys_cpu::physics_rigidbodies::render(sf::RenderTarget& win, cl::cl_gl_interop_texture* cull_texture, cl::command_queue& cqueue)
 {
     cull_texture->unacquire(cqueue);
 
-    cull_shader->setUniform("cull_texture", cull_texture_backing);
+    cull_shader->setUniform("cull_texture", cull_texture->storage->fetch_storage_as<sf::Texture>());
 
     sf::RenderStates state;
     state.shader = cull_shader;

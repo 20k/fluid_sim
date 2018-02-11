@@ -98,7 +98,8 @@ int main()
     unsigned int glid = ctex.getNativeHandle();
 
     cl::cl_gl_interop_texture* circletex = buffer_manage.fetch<cl::cl_gl_interop_texture>(ctx, nullptr);
-    circletex->create_from_texture(glid);
+
+    circletex->create_from_texture(glid, cl::cl_gl_storage_base());
     circletex->acquire(cqueue);
     #endif // 0
     ///END HACKY CIRCLE TEXTURE STUFF
@@ -220,7 +221,7 @@ int main()
         ///need to use last frames occlusion backing
         if(use_cpu_physics)
         {
-            physics.render(win, fluid_manage.rendered_occlusion_backing[fluid_manage.which_occlusion], fluid_manage.rendered_occlusion[fluid_manage.which_occlusion], cqueue);
+            physics.render(win, fluid_manage.rendered_occlusion[fluid_manage.which_occlusion], cqueue);
         }
 
         win.display();

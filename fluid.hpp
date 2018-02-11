@@ -38,7 +38,6 @@ struct fluid_manager
     int which_physics_tex = 0;
     std::vector<physics_particle> cpu_physics_particles;
 
-    sf::Texture rendered_occlusion_backing[2];
     cl::cl_gl_interop_texture* rendered_occlusion[2];
     int which_occlusion = 0;
 
@@ -202,10 +201,14 @@ struct fluid_manager
         physics_tex[0]->alloc_img(cqueue, zero_data, velocity_dim, CL_RG, CL_FLOAT);
         physics_tex[1]->alloc_img(cqueue, zero_data, velocity_dim, CL_RG, CL_FLOAT);
 
-        rendered_occlusion_backing[0].create(dye_dim.x(), dye_dim.y());
-        rendered_occlusion_backing[1].create(dye_dim.x(), dye_dim.y());
-        rendered_occlusion[0]->create_from_texture(rendered_occlusion_backing[0].getNativeHandle());
-        rendered_occlusion[1]->create_from_texture(rendered_occlusion_backing[1].getNativeHandle());
+        cl::cl_gl_storage<sf::Texture> s1;
+        cl::cl_gl_storage<sf::Texture> s2;
+
+        s1.storage->create(dye_dim.x(), dye_dim.y());
+        s2.storage->create(dye_dim.x(), dye_dim.y());
+
+        rendered_occlusion[0]->create_from_texture(s1.storage->getNativeHandle(), s1);
+        rendered_occlusion[1]->create_from_texture(s2.storage->getNativeHandle(), s2);
 
         cl::args w_of_args;
         w_of_args.push_back(noise);
@@ -217,11 +220,6 @@ struct fluid_manager
     cl::cl_gl_interop_texture* get_occlusion()
     {
         return rendered_occlusion[which_occlusion];
-    }
-
-    sf::Texture& get_occlusion_back()
-    {
-        return rendered_occlusion_backing[which_occlusion];
     }
 
     cl::buffer* get_velocity_buf(int offset)
