@@ -512,7 +512,9 @@ void phys_cpu::physics_rigidbodies::render(sf::RenderTarget& win, cl::cl_gl_inte
 {
     cull_texture->unacquire(cqueue);
 
-    cull_shader->setUniform("cull_texture", cull_texture->storage->fetch_storage_as<sf::Texture>());
+    sf::Texture* ptr = cull_texture->storage->fetch_storage_as<sf::Texture>();
+
+    cull_shader->setUniform("cull_texture", *ptr);
 
     sf::RenderStates state;
     state.shader = cull_shader;
