@@ -12,6 +12,7 @@ struct physics_particle
     //vec2f unused_velocity = {0,0};
     //vec4f col = {0, 0, 1, 1};
     uint32_t col = 0;
+    uint32_t pad = 0;
 };
 
 struct fluid_manager
@@ -180,21 +181,35 @@ struct fluid_manager
             //cpu_physics_particles.push_back({pos2, col});
         }
 
+        uint32_t col_mod = 0;
 
-        for(float y=0; y < dye_dim.y()/2; y+=0.5f)
+        for(float y=0; y < dye_dim.y()/2; y+=1.f)
         {
-            for(float x=0; x < dye_dim.x(); x+=0.5f)
+            for(float x=0; x < dye_dim.x(); x+=1.f)
             {
                 uint32_t col = rgba_to_uint((vec4f){0.3f, 1.f, 0.3f, 1.f});
+
+                if((col_mod % 2) == 0)
+                {
+                    col = rgba_to_uint((vec4f){0.3f, 0.3f, 1.f, 1.f});
+                }
 
                 vec2f pos = {x, y};
 
                 cpu_physics_particles.push_back({pos, col});
+
+                col_mod++;
             }
         }
 
+        std::cout << "total num " << col_mod << " ddim " << ddim.x() * ddim.y() << std::endl;
+
         fluid_particles->alloc(cqueue, cpu_particles);
         physics_particles->alloc(cqueue, cpu_physics_particles);
+
+        //std::cout << "allocated bytes " << physics_particles->alloc_size << " real elements " << cpu_physics_particles.size() << " expected " << cpu_physics_particles.size() * sizeof(physics_particle) << std::endl;
+
+        std::cout << "SIZEOF " << sizeof(physics_particle) << std::endl;
 
 
         ///need a double buffer class
