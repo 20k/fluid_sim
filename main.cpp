@@ -125,6 +125,8 @@ int main()
     vec2f start_pos = {0,0};
     bool middle_going = false;
 
+    std::vector<vec2f> permanent_forces;
+
     while(running)
     {
         sf::Event event;
@@ -144,7 +146,16 @@ int main()
 
         if(mouse.isButtonPressed(sf::Mouse::Left))
         {
-            fluid_manage.apply_force(cqueue, 0.1f, cur_mouse, diff);
+            fluid_manage.apply_force(cqueue, 0.3f, cur_mouse, diff);
+            //fluid_manage.apply_force(cqueue, 0.3f, cur_mouse + (vec2f){1, 0}, diff);
+            //fluid_manage.apply_force(cqueue, 0.3f, cur_mouse + (vec2f){-1, 0}, diff);
+            //fluid_manage.apply_force(cqueue, 0.3f, cur_mouse + (vec2f){0, 1}, diff);
+            //fluid_manage.apply_force(cqueue, 0.3f, cur_mouse + (vec2f){0, -1}, diff);
+        }
+
+        for(auto& i : permanent_forces)
+        {
+            fluid_manage.apply_force(cqueue, 0.3, i, {0, -1});
         }
 
         if(mouse.isButtonPressed(sf::Mouse::Right))
@@ -180,6 +191,11 @@ int main()
             physics.register_user_physics_body(start_pos, end_pos);
 
             middle_going = false;
+        }
+
+        if(ONCE_MACRO(sf::Keyboard::V))
+        {
+            permanent_forces.push_back(cur_mouse);
         }
 
         while(win.pollEvent(event))
