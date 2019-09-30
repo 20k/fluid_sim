@@ -15,6 +15,19 @@ struct physics_particle
     uint32_t pad = 0;
 };
 
+vec3f hue_from_h(float H)
+{
+    float R = fabs(H * 6 - 3) - 1;
+    float G = 2 - fabs(H * 6 - 2);
+    float B = 2 - fabs(H * 6 - 4);
+    return clamp((vec3f){R,G,B}, 0, 1);
+}
+
+vec3f hsv_to_rgb(vec3f in)
+{
+    return ((hue_from_h(in.x()) - 1) * in.y() + 1) * in.z();
+}
+
 struct fluid_manager
 {
     int which_vel = 0;
@@ -181,35 +194,40 @@ struct fluid_manager
             //cpu_physics_particles.push_back({pos2, col});
         }
 
-        uint32_t col_mod = 0;
+        //uint32_t col_mod = 0;
+
+        float hue_start_angle = 0;
+        float hue_end_angle = 1;
 
         for(float y=0; y < dye_dim.y()/2; y+=1.f)
         {
             for(float x=0; x < dye_dim.x(); x+=1.f)
             {
-                uint32_t col = rgba_to_uint((vec4f){0.3f, 1.f, 0.3f, 1.f});
+                /*uint32_t col = rgba_to_uint((vec4f){0.3f, 1.f, 0.3f, 1.f});
 
                 if((col_mod % 2) == 0)
                 {
                     col = rgba_to_uint((vec4f){0.3f, 0.3f, 1.f, 1.f});
-                }
+                }*/
+
+                float hangle = mix(hue_start_angle, hue_end_angle, x / dye_dim.x());
+
+                uint32_t col = rgba_to_uint(hsv_to_rgb({hangle, 0.9, 0.9}));
 
                 vec2f pos = {x, y};
 
                 cpu_physics_particles.push_back({pos, col});
 
-                col_mod++;
+                //col_mod++;
             }
         }
 
-        std::cout << "total num " << col_mod << " ddim " << ddim.x() * ddim.y() << std::endl;
+        //std::cout << "total num " << col_mod << " ddim " << ddim.x() * ddim.y() << std::endl;
 
         fluid_particles->alloc(cqueue, cpu_particles);
         physics_particles->alloc(cqueue, cpu_physics_particles);
 
         //std::cout << "allocated bytes " << physics_particles->alloc_size << " real elements " << cpu_physics_particles.size() << " expected " << cpu_physics_particles.size() * sizeof(physics_particle) << std::endl;
-
-        std::cout << "SIZEOF " << sizeof(physics_particle) << std::endl;
 
 
         ///need a double buffer class
