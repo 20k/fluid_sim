@@ -61,6 +61,7 @@
 			<Add option="-fexceptions" />
 			<Add option="-Wno-narrowing" />
 			<Add option="-Wno-deprecated-declarations" />
+			<Add option="-std=c++2a" />
 			<Add directory="C:/Users/James/Desktop/projects/fluid_fun/deps" />
 			<Add directory="deps/bullet" />
 		</Compiler>

@@ -8,6 +8,10 @@
 #include "physics.hpp"
 #include "physics_gpu.hpp"
 #include "util.hpp"
+#include <windows.h>
+#include <wingdi.h>
+#include <GL/glew.h>
+#include <gl/gl.h>
 
 extern int b3OpenCLUtils_clewInit();
 

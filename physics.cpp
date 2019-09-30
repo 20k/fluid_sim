@@ -472,7 +472,7 @@ void phys_cpu::physics_rigidbodies::init(cl::context& ctx, cl::buffer_manager& b
     {
         //physics_body* pb1 = make_sphere(1.f, 5.f, {500 + 5 * x, 50 + y * 5, 0});
 
-        physics_body* pb1 = make_rectangle(1.f, {20, 5}, {500 + 50 * x, 50 + y * 20, 0});
+        physics_body* pb1 = make_rectangle(1.f, {20, 5, 0}, {500 + 50 * x, 50 + y * 20, 0});
 
         pb1->add(dynamicsWorld);
     }
@@ -640,7 +640,7 @@ void on_write_complete(cl_event event, cl_int event_command_exec_status, void* u
 
     int to_read = dat->num_positions * 3;
 
-    cl::read_event<float> read = dat->positions_out->async_read<float>(*dat->cqueue, 0, to_read, false, {&evt});
+    cl::read_event<float> read = dat->positions_out->async_read<float>(*dat->cqueue, {0,0}, to_read, false, {&evt});
 
     read_completion_data* rdata = new read_completion_data{dat->bodies, read.data};
     read.set_completion_callback(on_read_complete, rdata);

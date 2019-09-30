@@ -106,7 +106,7 @@ struct fluid_manager
         {
             //vec2f centre = {velocity_dim.x()/2.f, velocity_dim.y()/2.f};
 
-            vec2f fluid_val = randv<2, float>(-0.2f, 0.2f);
+            vec2f fluid_val = randv<2, float>({-0.2f, -0.2f}, {0.2f, 0.2f});
 
             velocity_info.push_back(fluid_val);
 
@@ -135,7 +135,7 @@ struct fluid_manager
 
             dye_val.x() = ((vec2f){x, y} - centre).length() / dye_dim.length();
 
-            dye_val.xy() += fabs(randv<2, float>(-0.2f, 0.2f));
+            dye_val.xy() += fabs(randv<2, float>({-0.2f, -0.2f}, {0.2f, 0.2f}));
             #endif // SKY
 
             dye_concentrates.push_back({dye_val.x(), dye_val.y(), dye_val.z(), 1.f});
@@ -170,7 +170,7 @@ struct fluid_manager
         cpu_particles.reserve(20000);
         for(int i=0; i < 20000; i++)
         {
-            vec2f pos = randv<2, float>(0, 600);
+            vec2f pos = randv<2, float>({0, 0}, {600, 600});
             //vec2f pos2 = randv<2, float>(600, 1000);
 
             cpu_particles.push_back({pos});
