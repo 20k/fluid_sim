@@ -83,11 +83,6 @@
 			<Add option="-lBulletDynamics" />
 			<Add option="-lBulletCollision" />
 			<Add option="-lLinearMath" />
-			<Add option="-lBullet3OpenCL_clew" />
-			<Add option="-lbullet3collision" />
-			<Add option="-lbullet3common" />
-			<Add option="-lbullet3dynamics" />
-			<Add option="-lbullet3geometry" />
 			<Add directory="deps/bullet" />
 		</Linker>
 		<Unit filename="Shaders/cull.fglsl" />
@@ -102,7 +97,10 @@
 		<Unit filename="main.cpp" />
 		<Unit filename="physics.cpp" />
 		<Unit filename="physics.hpp" />
-		<Unit filename="physics_gpu.cpp" />
+		<Unit filename="physics_gpu.cpp">
+			<Option compile="0" />
+			<Option link="0" />
+		</Unit>
 		<Unit filename="physics_gpu.hpp" />
 		<Unit filename="util.hpp" />
 		<Extensions>

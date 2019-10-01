@@ -33,7 +33,7 @@ int main()
 
     #if 1
 
-    b3OpenCLUtils_clewInit();
+    //b3OpenCLUtils_clewInit();
 
     cl::context ctx;
 
