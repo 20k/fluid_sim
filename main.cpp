@@ -30,6 +30,7 @@ int main()
 
     sf::RenderWindow win;
     win.create(sf::VideoMode(window_size.x(), window_size.y()), "Test", sf::Style::Default, settings);
+    win.setVerticalSyncEnabled(false);
 
     #if 1
 
