@@ -116,13 +116,21 @@ int main()
     cl::buffer_manager buffer_manage;
 
     cl::cl_gl_interop_texture* screen_textures[2];
+    cl::cl_gl_interop_texture* sand_textures[2];
 
     for(int i=0; i < 2; i++)
     {
         screen_textures[i] = buffer_manage.fetch<cl::cl_gl_interop_texture>(ctx, nullptr);
-        screen_textures[i]->create_renderbuffer(window_size.x(), window_size.y());
+        screen_textures[i]->create_rendertexture(window_size.x(), window_size.y());
         screen_textures[i]->acquire(cqueue);
+
+        sand_textures[i] = buffer_manage.fetch<cl::cl_gl_interop_texture>(ctx, nullptr);
+        sand_textures[i]->create_rendertexture(window_size.x(), window_size.y());
+        sand_textures[i]->acquire(cqueue);
     }
+
+    //cl::cl_gl_interop_texture* real_screen = buffer_manage.fetch<cl::cl_gl_interop_texture>(ctx, nullptr);
+    //real_screen->create_from_renderbuffer(0);
 
     printf("Init stextures\n");
 
@@ -261,11 +269,11 @@ int main()
             physics.issue_gpu_reads(cqueue, fluid_manage.get_velocity_buf(0), fluid_manage.physics_tex[fluid_manage.which_physics_tex], fluid_manage.velocity_to_display_ratio);
 
         cl::cl_gl_interop_texture* interop = screen_textures[next_screen];
-
         interop->acquire(cqueue);
 
         fluid_manage.tick(interop, buffer_manage, cqueue);
         fluid_manage.render_fluid(interop, cqueue);
+        interop->unacquire(cqueue);
 
         /*if(!use_cpu_physics)
         {
@@ -275,7 +283,7 @@ int main()
 
         //lighting_manage.tick(interop, buffer_manage, cqueue, cur_mouse, fluid_manage.dye[fluid_manage.which_dye]);
 
-        fluid_manage.render_sand(interop, cqueue);
+        //fluid_manage.render_sand(interop, cqueue);
 
         if(use_cpu_physics)
         {
@@ -285,11 +293,18 @@ int main()
         //if(key.isKeyPressed(sf::Keyboard::Escape))
         //    system("Pause");
 
-        cl::cl_gl_interop_texture* to_render = screen_textures[current_screen];
+        ImDrawList* lst = ImGui::GetBackgroundDrawList();
 
-        ///render LAST frame
-        to_render->gl_blit_me(0, cqueue);
-        to_render->acquire(cqueue); ///here for performance, not correctness
+        {
+            screen_textures[current_screen]->unacquire(cqueue);
+
+            vec2f tl = screen_absolute_pos;
+            vec2f br = screen_absolute_pos + (vec2f){screen_textures[current_screen]->w, screen_textures[current_screen]->h};
+
+            lst->AddImage((void*)screen_textures[current_screen]->texture_id, ImVec2(tl.x(),tl.y()), ImVec2(br.x(), br.y()));
+        }
+
+        //lst->AddCallback(my_callback, (void*)&callback2);
 
         ///need to use last frames occlusion backing
         if(use_cpu_physics)
@@ -317,9 +332,28 @@ int main()
             }
         }
 
-        ImGui::Begin("Test");
+        {
+            sand_textures[next_screen]->acquire(cqueue);
+
+            cl::args debug;
+            debug.push_back(sand_textures[next_screen]);
+
+            cqueue.exec("clear_image", debug, {sand_textures[next_screen]->w, sand_textures[next_screen]->h}, {16, 16});
+
+            fluid_manage.render_sand(sand_textures[next_screen], cqueue);
+            sand_textures[next_screen]->unacquire(cqueue);
+
+            sand_textures[current_screen]->unacquire(cqueue);
+
+            vec2f tl = screen_absolute_pos;
+            vec2f br = screen_absolute_pos + (vec2f){sand_textures[current_screen]->w, sand_textures[current_screen]->h};
+
+            lst->AddImage((void*)sand_textures[current_screen]->texture_id, ImVec2(tl.x(),tl.y()), ImVec2(br.x(), br.y()));
+        }
+
+        /*ImGui::Begin("Test");
         ImGui::Text("hi");
-        ImGui::End();
+        ImGui::End();*/
 
         ImGui::Render();
 
@@ -327,8 +361,10 @@ int main()
         glfwGetFramebufferSize(window, &display_w, &display_h);
 
         glViewport(0, 0, display_w, display_h);
-        //glClearColor(0, 0, 0, 0);
-        //glClear(GL_COLOR_BUFFER_BIT);
+        glClearColor(0, 0, 0, 0);
+        glClear(GL_COLOR_BUFFER_BIT);
+        //glDrawBuffer(GL_BACK);
+        glBindFramebufferEXT(GL_DRAW_FRAMEBUFFER, 0);
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
         if(io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)

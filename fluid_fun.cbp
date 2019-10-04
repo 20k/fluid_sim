@@ -67,6 +67,7 @@
 			<Add directory="C:/Users/James/Desktop/projects/fluid_fun/deps" />
 			<Add directory="deps/bullet" />
 			<Add directory="deps/imgui" />
+			<Add directory="C:/msys64/mingw64/include/bullet" />
 		</Compiler>
 		<Linker>
 			<Add option="-lmingw32" />
