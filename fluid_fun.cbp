@@ -62,8 +62,11 @@
 			<Add option="-Wno-narrowing" />
 			<Add option="-Wno-deprecated-declarations" />
 			<Add option="-std=c++2a" />
+			<Add option="-DIMGUI_IMPL_OPENGL_LOADER_GLEW" />
+			<Add option="-DSUBPIXEL_FONT_RENDERING" />
 			<Add directory="C:/Users/James/Desktop/projects/fluid_fun/deps" />
 			<Add directory="deps/bullet" />
+			<Add directory="deps/imgui" />
 		</Compiler>
 		<Linker>
 			<Add option="-lmingw32" />
@@ -83,10 +86,21 @@
 			<Add option="-lBulletDynamics" />
 			<Add option="-lBulletCollision" />
 			<Add option="-lLinearMath" />
+			<Add option="-lglfw3" />
+			<Add option="-lglew32" />
 			<Add directory="deps/bullet" />
 		</Linker>
 		<Unit filename="Shaders/cull.fglsl" />
 		<Unit filename="Shaders/cull.vglsl" />
+		<Unit filename="deps/imgui/examples/imgui_impl_glfw.cpp" />
+		<Unit filename="deps/imgui/examples/imgui_impl_glfw.h" />
+		<Unit filename="deps/imgui/examples/imgui_impl_opengl3.cpp" />
+		<Unit filename="deps/imgui/examples/imgui_impl_opengl3.h" />
+		<Unit filename="deps/imgui/imgui.cpp" />
+		<Unit filename="deps/imgui/imgui.h" />
+		<Unit filename="deps/imgui/imgui_draw.cpp" />
+		<Unit filename="deps/imgui/imgui_widgets.cpp" />
+		<Unit filename="deps/imgui/misc/freetype/imgui_freetype.cpp" />
 		<Unit filename="deps/ocl/logging.cpp" />
 		<Unit filename="deps/ocl/logging.hpp" />
 		<Unit filename="deps/ocl/ocl.cpp" />
