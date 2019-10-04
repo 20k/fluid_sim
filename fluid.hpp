@@ -50,7 +50,6 @@ struct fluid_manager
     cl::buffer* physics_tex[2];
     cl::buffer* physics_particles_boundary;
     int which_physics_tex = 0;
-    std::vector<physics_particle> cpu_physics_particles;
 
     cl::buffer* noise;
     cl::buffer* w_of;
@@ -189,6 +188,8 @@ struct fluid_manager
         }
 
         //uint32_t col_mod = 0;
+
+        std::vector<physics_particle> cpu_physics_particles;
 
         float hue_start_angle = 0;
         float hue_end_angle = 1;
@@ -349,7 +350,7 @@ struct fluid_manager
         cqueue.exec("fluid_set_boundary", bound_dim, {1}, {1});
     }
 
-    void handle_particles(cl::cl_gl_interop_texture* interop, cl::command_queue& cqueue, float timestep_s)
+    /*void handle_particles(cl::cl_gl_interop_texture* interop, cl::command_queue& cqueue, float timestep_s)
     {
         interop->acquire(cqueue);
 
@@ -374,7 +375,7 @@ struct fluid_manager
         render_args.push_back(interop);
 
         cqueue.exec("fluid_render_particles", render_args, {num_particles}, {128});
-    }
+    }*/
 
     uint32_t fsand_id = 0;
     uint32_t phys_counter = 0;
@@ -384,7 +385,7 @@ struct fluid_manager
         cl::buffer* v1 = get_velocity_buf(0);
         //cl::buffer* v2 = get_velocity_buf(1);
 
-        int num_particles = cpu_physics_particles.size();
+        int num_particles = physics_particles->size() / sizeof(physics_particle);
 
         vec2f scale = velocity_to_display_ratio;
 
@@ -456,7 +457,7 @@ struct fluid_manager
     {
         interop->acquire(cqueue);
 
-        int num_particles = cpu_physics_particles.size();
+        int num_particles = physics_particles->size() / sizeof(physics_particle);
 
         cl::args render_args;
         render_args.push_back(physics_particles);
