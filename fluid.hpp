@@ -379,10 +379,8 @@ struct fluid_manager
     uint32_t fsand_id = 0;
     uint32_t phys_counter = 0;
 
-    void handle_falling_sand(cl::cl_gl_interop_texture* interop, cl::command_queue& cqueue, float timestep_s)
+    void handle_falling_sand(cl::command_queue& cqueue, float timestep_s)
     {
-        interop->acquire(cqueue);
-
         cl::buffer* v1 = get_velocity_buf(0);
         //cl::buffer* v2 = get_velocity_buf(1);
 
@@ -473,7 +471,7 @@ struct fluid_manager
     ///future improvement: When decoupling dye/visuals from velocity
     ///keep underlying velocity field at full res, try just performing jacobi at lower res
     ///that way we get full res advection etc, which should maintain most of the quality
-    void tick(cl::cl_gl_interop_texture* interop, cl::buffer_manager& buffers, cl::command_queue& cqueue)
+    void tick(cl::buffer_manager& buffers, cl::command_queue& cqueue)
     {
         cl::buffer* v1 = get_velocity_buf(0);
         cl::buffer* v2 = get_velocity_buf(1);
@@ -607,9 +605,6 @@ struct fluid_manager
         cl::buffer* ndye = dye[which_dye];
         #endif // UNSUCCESSFUL_UPSCALE
 
-
-        interop->acquire(cqueue);
-
         /*cl::buffer* debug_velocity = ndye;
 
         cl::args debug;
@@ -620,7 +615,7 @@ struct fluid_manager
         cqueue.exec("fluid_render", debug, dye_dim, {16, 16});*/
 
         //handle_particles(interop, program, cqueue, timestep_s);
-        handle_falling_sand(interop, cqueue, timestep_s);
+        handle_falling_sand(cqueue, timestep_s);
     }
 
     void render_fluid(cl::cl_gl_interop_texture* interop, cl::command_queue& cqueue)

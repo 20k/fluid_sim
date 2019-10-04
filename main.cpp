@@ -96,8 +96,6 @@ int main()
 
     printf("Init ogl\n");
 
-    #if 1
-
     //b3OpenCLUtils_clewInit();
 
     cl::context ctx;
@@ -157,8 +155,6 @@ int main()
 
     /*if(!use_cpu_physics)
         physics_gpu.init(ctx, phys_queue);*/
-
-    #endif // 0
 
     sf::Clock clk;
 
@@ -262,9 +258,9 @@ int main()
             physics.issue_gpu_reads(cqueue, fluid_manage.get_velocity_buf(0), fluid_manage.physics_tex[fluid_manage.which_physics_tex], fluid_manage.velocity_to_display_ratio);
 
         cl::cl_gl_interop_texture* interop = screen_textures[next_screen];
-        interop->acquire(cqueue);
 
-        fluid_manage.tick(interop, buffer_manage, cqueue);
+        interop->acquire(cqueue);
+        fluid_manage.tick(buffer_manage, cqueue);
         fluid_manage.render_fluid(interop, cqueue);
         interop->unacquire(cqueue);
 
@@ -301,7 +297,6 @@ int main()
             lst->AddImage((void*)screen_textures[current_screen]->texture_id, ImVec2(tl.x(),tl.y()), ImVec2(br.x(), br.y()));
         }
 
-        ///need to use last frames occlusion backing
         if(use_cpu_physics)
         {
             ///NEEDS UPDATING
@@ -367,7 +362,6 @@ int main()
         }
 
         glfwSwapBuffers(window);
-
         cqueue.block();
 
         if(use_cpu_physics)
