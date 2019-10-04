@@ -52,7 +52,7 @@ struct physics_body
 
     void calculate_center();
 
-    std::vector<vec2f> decompose_centrally(const std::vector<vec2f>& vert_in);
+    std::vector<vec2f> decompose_centrally(std::vector<vec2f> vert_in);
     std::vector<vec2f> get_world_vertices();
     std::vector<vec2f> get_world_physics_vertices();
 

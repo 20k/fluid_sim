@@ -43,6 +43,7 @@ int main()
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);  // 3.2+ only
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);            // 3.0+ only
+    glfwWindowHint(GLFW_SAMPLES, 8);
 
     //glfwWindowHint(GLFW_SRGB_CAPABLE, GLFW_TRUE);
 
@@ -199,9 +200,13 @@ int main()
 
     while(running)
     {
-        sf::Event event;
-
         double elapsed_s = clk.restart().asMicroseconds() / 1000. / 1000.;
+
+        glfwPollEvents();
+
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
 
         if(ImGui::IsKeyDown(GLFW_KEY_N))
         {
@@ -214,7 +219,9 @@ int main()
         int wypos = 0;
         glfwGetWindowPos(window, &wxpos, &wypos);
 
-        auto mpos = (vec2f){io.MousePos.x, io.MousePos.y} - (vec2f){wxpos, wypos};
+        vec2f screen_absolute_pos = {wxpos, wypos};
+
+        auto mpos = (vec2f){io.MousePos.x, io.MousePos.y} - screen_absolute_pos;
         last_mouse = cur_mouse;
         cur_mouse = mpos;
 
@@ -274,12 +281,6 @@ int main()
             permanent_forces.push_back(cur_mouse);
         }
 
-        glfwPollEvents();
-
-        ImGui_ImplOpenGL3_NewFrame();
-        ImGui_ImplGlfw_NewFrame();
-        ImGui::NewFrame();
-
         if(glfwWindowShouldClose(window))
             running = false;
 
@@ -322,6 +323,25 @@ int main()
         {
             ///NEEDS UPDATING
             //physics.render(win, fluid_manage.rendered_occlusion[fluid_manage.which_occlusion], cqueue);
+
+            ImDrawList* lst = ImGui::GetBackgroundDrawList();
+
+            for(phys_cpu::physics_body* phys : physics.elems)
+            {
+                std::vector<vec2f> world = phys->get_world_vertices();
+                vec3f col = phys->col*255;
+
+                assert((world.size() % 3) == 0);
+
+                for(int i=0; i < world.size(); i+=3)
+                {
+                    vec2f v1 = world[i] + screen_absolute_pos;
+                    vec2f v2 = world[i+1] + screen_absolute_pos;
+                    vec2f v3 = world[i+2] + screen_absolute_pos;
+
+                    lst->AddTriangleFilled({v1.x(), v1.y()}, {v2.x(), v2.y()}, {v3.x(), v3.y()}, IM_COL32(col.x(), col.y(), col.z(), 255));
+                }
+            }
         }
 
         ImGui::Begin("Test");

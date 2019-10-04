@@ -21,7 +21,7 @@ void phys_cpu::physics_body::calculate_center()
     local_centre = centre / (float)vertices.size();
 }
 
-std::vector<vec2f> phys_cpu::physics_body::decompose_centrally(const std::vector<vec2f>& vert_in)
+std::vector<vec2f> phys_cpu::physics_body::decompose_centrally(std::vector<vec2f> vert_in)
 {
     assert(vert_in.size() > 0);
 
@@ -33,6 +33,13 @@ std::vector<vec2f> phys_cpu::physics_body::decompose_centrally(const std::vector
     }
 
     centre = centre / (float)vert_in.size();
+
+    centre = round(centre);
+
+    std::sort(vert_in.begin(), vert_in.end(), [&](auto v1, auto v2)
+    {
+        return (v1 - centre).angle() > (v2 - centre).angle();
+    });
 
     std::vector<vec2f> decomp;
 
@@ -47,6 +54,11 @@ std::vector<vec2f> phys_cpu::physics_body::decompose_centrally(const std::vector
         decomp.push_back(cur_pos);
         decomp.push_back(next_pos);
         decomp.push_back(centre);
+    }
+
+    for(auto& i : decomp)
+    {
+        i = floor(i);
     }
 
     return decomp;
