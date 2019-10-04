@@ -351,9 +351,9 @@ int main()
             lst->AddImage((void*)sand_textures[current_screen]->texture_id, ImVec2(tl.x(),tl.y()), ImVec2(br.x(), br.y()));
         }
 
-        /*ImGui::Begin("Test");
+        ImGui::Begin("Test");
         ImGui::Text("hi");
-        ImGui::End();*/
+        ImGui::End();
 
         ImGui::Render();
 

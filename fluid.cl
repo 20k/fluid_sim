@@ -177,6 +177,8 @@ void fluid_render(__read_only image2d_t field, __write_only image2d_t screen, __
 
     val = clamp(val, 0.f, 1.f);
 
+    pos.y = gh - pos.y;
+
     write_imagef(screen, convert_int2(pos), (float4)(val.xyz, 1.f));
 }
 
@@ -976,6 +978,8 @@ void falling_sand_render(__global struct physics_particle* particles, int partic
 
     float4 col = uint_to_rgba(particles[gid].icol);
 
+    pos.y = gh - pos.y;
+
     write_imagef(screen, convert_int2(pos), (float4){col.xyz,1});
 
     /*for(int y=-1; y <= 1; y++)
@@ -1039,6 +1043,8 @@ void fluid_render_particles(__global struct fluid_particle* particles, int parti
                 continue;
 
             float2 new_pos = pos + (float2){x, y};
+
+            //new_pos.y = gh - new_pos.y;
 
             write_imagef(screen, convert_int2(new_pos), (float4)(1,1,1,1));
         }
