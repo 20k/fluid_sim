@@ -971,14 +971,15 @@ void falling_sand_render(__global struct physics_particle* particles, int partic
 
     float2 pos = particles[gid].pos;
 
-    if(pos.x >= gw-1 || pos.x < 0 || pos.y >= gh-1 || pos.y < 0)
+    pos = floor(pos);
+    pos.y = gh - pos.y;
+
+    if(pos.x > gw-1 || pos.x < 0 || pos.y > gh-1 || pos.y < 0)
         return;
 
     //float4 col = particles[gid].col;
 
     float4 col = uint_to_rgba(particles[gid].icol);
-
-    pos.y = gh - pos.y;
 
     write_imagef(screen, convert_int2(pos), (float4){col.xyz,1});
 
