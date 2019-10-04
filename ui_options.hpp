@@ -1,6 +1,9 @@
 #ifndef UI_OPTIONS_HPP_INCLUDED
 #define UI_OPTIONS_HPP_INCLUDED
 
+#include <vector>
+#include <string>
+
 namespace options
 {
     enum options
@@ -8,13 +11,23 @@ namespace options
         FLUID,
         SAND,
         RIGID,
+        BOUNDARY,
         COUNT
+    };
+
+    inline
+    const char* names[]
+    {
+        "Fluid",
+        "Sand",
+        "Rigidbody",
+        "Boundary",
     };
 }
 
 struct ui_options
 {
-    options::options brush = options::COUNT;
+    int brush = options::SAND;
 
     void tick();
 };

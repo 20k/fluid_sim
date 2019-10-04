@@ -16,6 +16,7 @@
 #include <imgui/misc/freetype/imgui_freetype.h>
 #include <imgui/examples/imgui_impl_glfw.h>
 #include <imgui/examples/imgui_impl_opengl3.h>
+#include "ui_options.hpp"
 
 extern int b3OpenCLUtils_clewInit();
 
@@ -132,6 +133,8 @@ int main()
 
     vec2i screen_dim = window_size;
 
+    ui_options options;
+
     fluid_manager fluid_manage;
     fluid_manage.init(ctx, buffer_manage, cqueue, screen_dim, screen_dim, screen_dim*2);
 
@@ -199,51 +202,56 @@ int main()
 
         if(ImGui::IsMouseDown(0))
         {
-            fluid_manage.apply_force(cqueue, 0.3f, cur_mouse, diff);
-            //fluid_manage.apply_force(cqueue, 0.3f, cur_mouse + (vec2f){1, 0}, diff);
-            //fluid_manage.apply_force(cqueue, 0.3f, cur_mouse + (vec2f){-1, 0}, diff);
-            //fluid_manage.apply_force(cqueue, 0.3f, cur_mouse + (vec2f){0, 1}, diff);
-            //fluid_manage.apply_force(cqueue, 0.3f, cur_mouse + (vec2f){0, -1}, diff);
-        }
-
-        for(auto& i : permanent_forces)
-        {
-            fluid_manage.apply_force(cqueue, 0.3, i, {0, -1});
-        }
-
-        if(ImGui::IsMouseDown(1))
-        {
-            vec2f mdiff = (cur_mouse - last_mouse);
-
-            float max_diff = ceil(mdiff.largest_elem());
-
-            if(max_diff == 0)
-                fluid_manage.write_boundary(cqueue, cur_mouse, 0.f);
-            else
+            if(options.brush == options::FLUID)
             {
-                vec2f step = mdiff / max_diff;
-                vec2f start = last_mouse;
+                fluid_manage.apply_force(cqueue, 0.3f, cur_mouse, diff);
+            }
 
-                for(int i=0; i < max_diff + 1; i++, start += step)
+            ///uuh
+            if(options.brush == options::SAND)
+            {
+
+            }
+
+            if(options.brush == options::BOUNDARY)
+            {
+                vec2f mdiff = (cur_mouse - last_mouse);
+
+                float max_diff = ceil(mdiff.largest_elem());
+
+                if(max_diff == 0)
+                    fluid_manage.write_boundary(cqueue, cur_mouse, 0.f);
+                else
                 {
-                    fluid_manage.write_boundary(cqueue, start, 0.f);
+                    vec2f step = mdiff / max_diff;
+                    vec2f start = last_mouse;
+
+                    for(int i=0; i < max_diff + 1; i++, start += step)
+                    {
+                        fluid_manage.write_boundary(cqueue, start, 0.f);
+                    }
                 }
             }
         }
 
-        if(ImGui::IsMouseClicked(2, false))
+        if(ImGui::IsMouseClicked(0, false) && options.brush == options::RIGID)
         {
             start_pos = cur_mouse;
             middle_going = true;
         }
 
-        if(!ImGui::IsMouseDown(2) && middle_going)
+        if(!ImGui::IsMouseDown(0) && middle_going)
         {
             vec2f end_pos = cur_mouse;
 
             physics.register_user_physics_body(start_pos, end_pos);
 
             middle_going = false;
+        }
+
+        for(auto& i : permanent_forces)
+        {
+            fluid_manage.apply_force(cqueue, 0.3, i, {0, -1});
         }
 
         if(ImGui::IsKeyPressed(GLFW_KEY_V))
@@ -286,6 +294,8 @@ int main()
         ImGui::Begin("Test");
         ImGui::Text("hi");
         ImGui::End();
+
+        options.tick();
 
 
         {
