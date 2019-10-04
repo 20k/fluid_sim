@@ -71,11 +71,6 @@
 		<Linker>
 			<Add option="-lmingw32" />
 			<Add option="-limgui" />
-			<Add option="-lsfml-graphics" />
-			<Add option="-lsfml-audio" />
-			<Add option="-lsfml-network" />
-			<Add option="-lsfml-window" />
-			<Add option="-lsfml-system" />
 			<Add option="-lfreetype" />
 			<Add option="-lopengl32" />
 			<Add option="-lws2_32" />
@@ -88,6 +83,7 @@
 			<Add option="-lLinearMath" />
 			<Add option="-lglfw3" />
 			<Add option="-lglew32" />
+			<Add option="-lsfml-system" />
 			<Add directory="deps/bullet" />
 		</Linker>
 		<Unit filename="Shaders/cull.fglsl" />

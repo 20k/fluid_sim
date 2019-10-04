@@ -52,7 +52,7 @@ struct fluid_manager
     int which_physics_tex = 0;
     std::vector<physics_particle> cpu_physics_particles;
 
-    cl::cl_gl_interop_texture* rendered_occlusion[2];
+    //cl::cl_gl_interop_texture* rendered_occlusion[2];
     int which_occlusion = 0;
 
     cl::buffer* noise;
@@ -107,8 +107,8 @@ struct fluid_manager
         w_of = buffers.fetch<cl::buffer>(ctx, nullptr);
         upscaled_advected_velocity = buffers.fetch<cl::buffer>(ctx, nullptr);
 
-        rendered_occlusion[0] = buffers.fetch<cl::cl_gl_interop_texture>(ctx, nullptr);
-        rendered_occlusion[1] = buffers.fetch<cl::cl_gl_interop_texture>(ctx, nullptr);
+        //rendered_occlusion[0] = buffers.fetch<cl::cl_gl_interop_texture>(ctx, nullptr);
+        //rendered_occlusion[1] = buffers.fetch<cl::cl_gl_interop_texture>(ctx, nullptr);
 
         std::vector<vec4f> zero_data;
         std::vector<vec4f> dye_concentrates;
@@ -234,14 +234,14 @@ struct fluid_manager
         physics_tex[0]->alloc_img(cqueue, zero_data, velocity_dim, CL_RG, CL_FLOAT);
         physics_tex[1]->alloc_img(cqueue, zero_data, velocity_dim, CL_RG, CL_FLOAT);
 
-        cl::cl_gl_storage<sf::Texture> s1;
+        /*cl::cl_gl_storage<sf::Texture> s1;
         cl::cl_gl_storage<sf::Texture> s2;
 
         s1.storage->create(dye_dim.x(), dye_dim.y());
-        s2.storage->create(dye_dim.x(), dye_dim.y());
+        s2.storage->create(dye_dim.x(), dye_dim.y());*/
 
-        rendered_occlusion[0]->create_from_texture(s1.storage->getNativeHandle(), s1);
-        rendered_occlusion[1]->create_from_texture(s2.storage->getNativeHandle(), s2);
+        /*rendered_occlusion[0]->create_from_texture(s1.storage->getNativeHandle(), s1);
+        rendered_occlusion[1]->create_from_texture(s2.storage->getNativeHandle(), s2);*/
 
         cl::args w_of_args;
         w_of_args.push_back(noise);
@@ -250,10 +250,10 @@ struct fluid_manager
         cqueue.exec("wavelet_w_of", w_of_args, velocity_dim, {16, 16});
     }
 
-    cl::cl_gl_interop_texture* get_occlusion()
+    /*cl::cl_gl_interop_texture* get_occlusion()
     {
         return rendered_occlusion[which_occlusion];
-    }
+    }*/
 
     cl::buffer* get_velocity_buf(int offset)
     {
@@ -459,7 +459,7 @@ struct fluid_manager
         cqueue.exec("falling_sand_edge_boundary_condition", generate_args, velocity_dim, {16, 16});
         #endif // PARTICLES_INTERFERE_WITH_FLUID
 
-        #define GENERATE_OCCLUSION
+        //#define GENERATE_OCCLUSION
         #ifdef GENERATE_OCCLUSION
 
         cl::cl_gl_interop_texture* occlusion = get_occlusion();

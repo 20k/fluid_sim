@@ -7,8 +7,6 @@
 #include <BulletCollision/CollisionDispatch/btConvex2dConvex2dAlgorithm.h>
 #include <BulletCollision/NarrowPhaseCollision/btMinkowskiPenetrationDepthSolver.h>
 
-#include <SFML/Graphics.hpp>
-
 void phys_cpu::physics_body::calculate_center()
 {
     assert(vertices.size() > 0);
@@ -56,7 +54,7 @@ std::vector<vec2f> phys_cpu::physics_body::decompose_centrally(const std::vector
 
 void phys_cpu::physics_body::init_sphere(float mass, float rad, vec3f start_pos, float angle)
 {
-    btSphereShape* shape = new btSphereShape(rad);
+    /*btSphereShape* shape = new btSphereShape(rad);
 
     sf::CircleShape cshape(shape->getRadius(), 10);
     int num_points = cshape.getPointCount();
@@ -72,7 +70,9 @@ void phys_cpu::physics_body::init_sphere(float mass, float rad, vec3f start_pos,
 
     vertices = decompose_centrally(vertices);
 
-    init(mass, shape, start_pos, angle);
+    init(mass, shape, start_pos, angle);*/
+
+    throw std::runtime_error("Not impl");
 }
 
 void phys_cpu::physics_body::init_rectangle(float mass, vec3f half_extents, vec3f start_pos, float angle)
@@ -363,7 +363,7 @@ std::vector<vec2f> phys_cpu::physics_body::get_world_physics_vertices()
     return ret;
 }
 
-void phys_cpu::physics_body::render(std::vector<sf::Vertex>& out)
+/*void phys_cpu::physics_body::render(std::vector<sf::Vertex>& out)
 {
     std::vector<vec2f> world = get_world_vertices();
 
@@ -375,7 +375,7 @@ void phys_cpu::physics_body::render(std::vector<sf::Vertex>& out)
 
         out.push_back(vert);
     }
-}
+}*/
 
 void phys_cpu::physics_body::add(btDynamicsWorld* world)
 {
@@ -484,8 +484,8 @@ void phys_cpu::physics_rigidbodies::init(cl::context& ctx, cl::buffer_manager& b
     positions_out->alloc_bytes(sizeof(vec2f) * max_physics_vertices);
     cpu_positions.resize(max_physics_vertices*3);
 
-    cull_shader = new sf::Shader();
-    cull_shader->loadFromFile("Shaders/cull.vglsl", "Shaders/cull.fglsl");
+    /*cull_shader = new sf::Shader();
+    cull_shader->loadFromFile("Shaders/cull.vglsl", "Shaders/cull.fglsl");*/
 
     //shader.setUniform("windowHeight", (float)win.getSize().y);
 
@@ -508,7 +508,7 @@ void phys_cpu::physics_rigidbodies::tick(double timestep_s, double fluid_timeste
     dynamicsWorld->stepSimulation(timestep_s, 10, 1/120.f);
 }
 
-void phys_cpu::physics_rigidbodies::render(sf::RenderTarget& win, cl::cl_gl_interop_texture* cull_texture, cl::command_queue& cqueue)
+/*void phys_cpu::physics_rigidbodies::render(sf::RenderTarget& win, cl::cl_gl_interop_texture* cull_texture, cl::command_queue& cqueue)
 {
     cull_texture->unacquire(cqueue);
 
@@ -528,7 +528,7 @@ void phys_cpu::physics_rigidbodies::render(sf::RenderTarget& win, cl::cl_gl_inte
 
     if(vertices.size() > 0)
         win.draw(&vertices[0], vertices.size(), sf::Triangles, state);
-}
+}*/
 
 void phys_cpu::physics_rigidbodies::process_gpu_reads()
 {
