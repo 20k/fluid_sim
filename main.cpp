@@ -155,30 +155,7 @@ int main()
     /*if(!use_cpu_physics)
         physics_gpu.init(ctx, phys_queue);*/
 
-    ///BEGIN HACKY CIRCLE TEXTURE STUFF
-    /*sf::RenderTexture intermediate_tex;
-    intermediate_tex.create(10, 10);
-
-    sf::CircleShape shape;
-    shape.setRadius(500.f);
-    shape.setFillColor(sf::Color(255,255,255,255));
-
-    shape.setPosition(5, 5);
-    shape.setOrigin(5, 5);
-
-    intermediate_tex.setActive(true);
-    intermediate_tex.draw(shape);
-    intermediate_tex.display();
-
-    const sf::Texture& ctex = intermediate_tex.getTexture();
-    unsigned int glid = ctex.getNativeHandle();
-
-    cl::cl_gl_interop_texture* circletex = buffer_manage.fetch<cl::cl_gl_interop_texture>(ctx, nullptr);
-
-    circletex->create_from_texture(glid, cl::cl_gl_storage_base());
-    circletex->acquire(cqueue);*/
     #endif // 0
-    ///END HACKY CIRCLE TEXTURE STUFF
 
     sf::Clock clk;
 
