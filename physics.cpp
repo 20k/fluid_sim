@@ -236,6 +236,13 @@ void phys_cpu::physics_body::tick(double timestep_s, double fluid_timestep_s)
 
         velocity_diff = velocity_diff / (float)physics_vertices.size();
 
+        btTransform trans;
+        body->getMotionState()->getWorldTransform(trans);
+
+        btQuaternion rotation = trans.getRotation();
+
+        quat q = convert_from_bullet_quaternion(rotation);
+
         ///ALERT: TODO: HACK
         ///if there's only one corner in the ground, we process fluid
         ///if there's more than one corner in the ground, negative velocity
@@ -244,7 +251,11 @@ void phys_cpu::physics_body::tick(double timestep_s, double fluid_timestep_s)
         {
             velocity_diff = velocity_diff * fluid_velocity_fraction;
 
-            body->applyImpulse(btVector3(velocity_diff.x(), velocity_diff.y(), 0), bt_local_pos);
+            vec3f local_3d = {local_pos.x(), local_pos.y(), 0};
+
+            vec3f fin = rot_quat(local_3d, q);
+
+            body->applyImpulse(btVector3(velocity_diff.x(), velocity_diff.y(), 0), btVector3(fin.x(), fin.y(), 0));
         }
     }
 
