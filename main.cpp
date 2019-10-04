@@ -38,13 +38,13 @@ int main()
     if(!glfwInit())
         throw std::runtime_error("Could not init glfw");
 
-    const char* glsl_version = "#version 410";
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
+    const char* glsl_version = "#version 130";
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);  // 3.2+ only
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);            // 3.0+ only
 
-    glfwWindowHint(GLFW_SRGB_CAPABLE, GLFW_TRUE);
+    //glfwWindowHint(GLFW_SRGB_CAPABLE, GLFW_TRUE);
 
     GLFWwindow* window = glfwCreateWindow(window_size.x(), window_size.y(), "Falling Sand Sim", NULL, NULL);
 
@@ -67,9 +67,9 @@ int main()
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
     io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
 
-    ImGui::SetStyleLinearColor(true);
+    //ImGui::SetStyleLinearColor(true);
 
-    ImGui::PushSrgbStyleColor(ImGuiCol_WindowBg, ImVec4(30/255., 30/255., 30/255., 255.));
+    ImGui::PushSrgbStyleColor(ImGuiCol_WindowBg, ImVec4(30/255., 30/255., 30/255., 1));
 
     ImGuiStyle& style = ImGui::GetStyle();
 
@@ -323,6 +323,10 @@ int main()
             ///NEEDS UPDATING
             //physics.render(win, fluid_manage.rendered_occlusion[fluid_manage.which_occlusion], cqueue);
         }
+
+        ImGui::Begin("Test");
+        ImGui::Text("hi");
+        ImGui::End();
 
         ImGui::Render();
 
