@@ -107,8 +107,6 @@ int main()
 
     ctx.register_program(program);
 
-    //cl::kernel test_kernel(program, "test_kernel");
-
     cl::command_queue cqueue(ctx);
     cl::command_queue readback_queue(ctx); ///erm. Sure. Lets pretend nothing can go wrong with this
     cl::command_queue phys_queue(ctx);
@@ -128,9 +126,6 @@ int main()
         sand_textures[i]->create_rendertexture(window_size.x(), window_size.y());
         sand_textures[i]->acquire(cqueue);
     }
-
-    //cl::cl_gl_interop_texture* real_screen = buffer_manage.fetch<cl::cl_gl_interop_texture>(ctx, nullptr);
-    //real_screen->create_from_renderbuffer(0);
 
     printf("Init stextures\n");
 
@@ -193,8 +188,6 @@ int main()
         {
             std::cout << elapsed_s * 1000. << std::endl;
         }
-
-        //auto mpos = mouse.getPosition(win);
 
         int wxpos = 0;
         int wypos = 0;
@@ -283,8 +276,6 @@ int main()
 
         //lighting_manage.tick(interop, buffer_manage, cqueue, cur_mouse, fluid_manage.dye[fluid_manage.which_dye]);
 
-        //fluid_manage.render_sand(interop, cqueue);
-
         if(use_cpu_physics)
         {
             physics.tick(elapsed_s, fluid_manage.timestep_s);
@@ -295,6 +286,12 @@ int main()
 
         ImDrawList* lst = ImGui::GetBackgroundDrawList();
 
+
+        ImGui::Begin("Test");
+        ImGui::Text("hi");
+        ImGui::End();
+
+
         {
             screen_textures[current_screen]->unacquire(cqueue);
 
@@ -303,8 +300,6 @@ int main()
 
             lst->AddImage((void*)screen_textures[current_screen]->texture_id, ImVec2(tl.x(),tl.y()), ImVec2(br.x(), br.y()));
         }
-
-        //lst->AddCallback(my_callback, (void*)&callback2);
 
         ///need to use last frames occlusion backing
         if(use_cpu_physics)
@@ -351,10 +346,6 @@ int main()
             lst->AddImage((void*)sand_textures[current_screen]->texture_id, ImVec2(tl.x(),tl.y()), ImVec2(br.x(), br.y()));
         }
 
-        ImGui::Begin("Test");
-        ImGui::Text("hi");
-        ImGui::End();
-
         ImGui::Render();
 
         int display_w, display_h;
@@ -376,9 +367,6 @@ int main()
         }
 
         glfwSwapBuffers(window);
-
-        //win.display();
-        //win.clear();
 
         cqueue.block();
 
