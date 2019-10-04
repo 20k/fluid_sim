@@ -165,8 +165,8 @@ int main()
     bool running = true;
 
     //win.resetGLStates();
-    PFNGLBINDFRAMEBUFFEREXTPROC glBindFramebufferEXT = (PFNGLBINDFRAMEBUFFEREXTPROC)wglGetProcAddress("glBindFramebufferEXT");
-    glBindFramebufferEXT(GL_DRAW_FRAMEBUFFER, 0);
+    //PFNGLBINDFRAMEBUFFEREXTPROC glBindFramebufferEXT = (PFNGLBINDFRAMEBUFFEREXTPROC)wglGetProcAddress("glBindFramebufferEXT");
+    //glBindFramebufferEXT(GL_DRAW_FRAMEBUFFER, 0);
 
     vec2f start_pos = {0,0};
     bool middle_going = false;
