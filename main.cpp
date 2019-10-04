@@ -204,7 +204,14 @@ int main()
         {
             if(options.brush == options::FLUID)
             {
-                fluid_manage.apply_force(cqueue, 0.3f, cur_mouse, diff);
+                float min_v = 0.05;
+                float max_v = 1;
+
+                float frac = (options.brush_size - 1) / (10.f - 1.f);
+
+                float my_v = mix(min_v, max_v, frac);
+
+                fluid_manage.apply_force(cqueue, my_v, cur_mouse, diff);
             }
 
             ///uuh

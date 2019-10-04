@@ -256,6 +256,7 @@ void phys_cpu::physics_body::tick(double timestep_s, double fluid_timestep_s)
             vec3f fin = rot_quat(local_3d, q);
 
             body->applyImpulse(btVector3(velocity_diff.x(), velocity_diff.y(), 0), btVector3(fin.x(), fin.y(), 0));
+            body->activate(true);
         }
     }
 
@@ -294,6 +295,8 @@ void phys_cpu::physics_body::tick(double timestep_s, double fluid_timestep_s)
 
             body->applyCentralImpulse(btVector3(to_remove_velocity.x(), to_remove_velocity.y(), 0.f));
             body->applyTorqueImpulse(btVector3(to_remove_angular.x(), to_remove_angular.y(), to_remove_angular.z()));
+
+            body->activate(true);
 
             //auto nvel = body->getLinearVelocity();
             //auto nang = body->getAngularVelocity();
