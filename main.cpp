@@ -200,7 +200,7 @@ int main()
 
         vec2f diff = cur_mouse - last_mouse;
 
-        if(ImGui::IsMouseDown(0))
+        if(ImGui::IsMouseDown(0) && !ImGui::IsAnyWindowFocused())
         {
             if(options.brush == options::FLUID)
             {
@@ -211,21 +211,25 @@ int main()
             if(options.brush == options::SAND)
             {
                 int old_size = fluid_manage.physics_particles->size();
-
-                fluid_manage.physics_particles->resize(cqueue, old_size + sizeof(physics_particle));
+                int old_num = old_size / sizeof(physics_particle);
 
                 std::vector<physics_particle> next;
 
-                for(int i=old_size / sizeof(physics_particle); i < (int)fluid_manage.physics_particles->size() / sizeof(physics_particle); i++)
+                for(int y=-options.brush_size + 1; y < options.brush_size; y++)
                 {
-                    physics_particle part;
-                    part.pos = {mpos.x(), screen_dim.y() - mpos.y()};
-                    part.col = 0xFFFFFFFF;
+                    for(int x=-options.brush_size + 1; x < options.brush_size; x++)
+                    {
+                        physics_particle part;
+                        part.pos = {mpos.x() + x, screen_dim.y() - (mpos.y() + y)};
+                        part.col = 0xFFFFFFFF;
 
-                    next.push_back(part);
+                        next.push_back(part);
+                    }
                 }
 
-                fluid_manage.physics_particles->async_write(cqueue, next, {old_size / sizeof(physics_particle), 0});
+                fluid_manage.physics_particles->resize(cqueue, old_size + next.size() * sizeof(physics_particle));
+
+                fluid_manage.physics_particles->async_write(cqueue, next, {old_num, 0});
             }
 
             if(options.brush == options::BOUNDARY)
@@ -249,7 +253,7 @@ int main()
             }
         }
 
-        if(ImGui::IsMouseClicked(0, false) && options.brush == options::RIGID)
+        if(ImGui::IsMouseClicked(0, false) && options.brush == options::RIGID && !ImGui::IsAnyWindowFocused())
         {
             start_pos = cur_mouse;
             middle_going = true;

@@ -28,6 +28,7 @@ namespace options
 struct ui_options
 {
     int brush = options::SAND;
+    int brush_size = 1;
 
     void tick();
 };
