@@ -290,11 +290,6 @@ int main()
 
         ImDrawList* lst = ImGui::GetBackgroundDrawList();
 
-
-        ImGui::Begin("Test");
-        ImGui::Text("hi");
-        ImGui::End();
-
         options.tick();
 
 
