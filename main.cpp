@@ -101,7 +101,7 @@ int main()
     cl::context ctx;
 
     cl::program program(ctx, "fluid.cl");
-    program.build_with(ctx, "");
+    program.build_with(ctx, "-cl-single-precision-constant -cl-denorms-are-zero -cl-fast-relaxed-math");
 
     ctx.register_program(program);
 
