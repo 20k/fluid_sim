@@ -210,7 +210,22 @@ int main()
             ///uuh
             if(options.brush == options::SAND)
             {
+                int old_size = fluid_manage.physics_particles->size();
 
+                fluid_manage.physics_particles->resize(cqueue, old_size + sizeof(physics_particle));
+
+                std::vector<physics_particle> next;
+
+                for(int i=old_size / sizeof(physics_particle); i < (int)fluid_manage.physics_particles->size() / sizeof(physics_particle); i++)
+                {
+                    physics_particle part;
+                    part.pos = {mpos.x(), screen_dim.y() - mpos.y()};
+                    part.col = 0xFFFFFFFF;
+
+                    next.push_back(part);
+                }
+
+                fluid_manage.physics_particles->async_write(cqueue, next, {old_size / sizeof(physics_particle), 0});
             }
 
             if(options.brush == options::BOUNDARY)
