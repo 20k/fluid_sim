@@ -497,7 +497,7 @@ struct fluid_manager
 
         for(int i=0; i < jacobi_iterations_diff; i++)
         {
-            float viscosity = 0.000001f;
+            float viscosity = 0.001f;
 
             float vdt = viscosity * timestep_s;
 
@@ -537,7 +537,7 @@ struct fluid_manager
 
         cqueue.exec("fluid_divergence", divergence_args, velocity_dim, {16, 16});
 
-        int pressure_iterations_diff = 10;
+        int pressure_iterations_diff = 40;
 
         //https://people.eecs.berkeley.edu/~demmel/cs267/lecture24/lecture24.html
         ///thanks berkley!
@@ -550,7 +550,7 @@ struct fluid_manager
             cl::buffer* p1 = get_pressure_buf(0);
             cl::buffer* p2 = get_pressure_buf(1);
 
-            float optimal_w = 1.8;
+            float optimal_w = 1.7;
 
             int red = 0;
 

@@ -109,6 +109,7 @@ int main()
     cl::command_queue cqueue(ctx);
     cl::command_queue readback_queue(ctx); ///erm. Sure. Lets pretend nothing can go wrong with this
     cl::command_queue phys_queue(ctx);
+    cl::command_queue dye_write_queue(ctx, CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE);
 
     cl::buffer_manager buffer_manage;
 
@@ -173,6 +174,8 @@ int main()
 
     printf("Pfngl main\n");
 
+    std::vector<cl::write_event<vec4f>> written_colours;
+
     while(running)
     {
         double elapsed_s = clk.restart().asMicroseconds() / 1000. / 1000.;
@@ -202,7 +205,7 @@ int main()
 
         if(ImGui::IsMouseDown(0) && !ImGui::IsAnyWindowFocused())
         {
-            if(options.brush == options::FLUID)
+            if(options.brush == options::FLUID_VELOCITY)
             {
                 float min_v = 0.05;
                 float max_v = 1;
@@ -212,6 +215,33 @@ int main()
                 float my_v = mix(min_v, max_v, frac);
 
                 fluid_manage.apply_force(cqueue, my_v, cur_mouse, diff);
+            }
+
+            if(options.brush == options::FLUID_DYE)
+            {
+                cl::buffer* q1 = fluid_manage.dye[fluid_manage.which_dye];
+
+                std::vector<vec4f> cols;
+
+                vec2i top_left = {mpos.x(),mpos.y()};
+                vec2i region = {options.brush_size * 2 - 1, options.brush_size * 2 - 1};
+
+                top_left.y() = screen_dim.y() - top_left.y() - 1;
+                top_left = top_left - region/2;
+
+                for(int i=0; i < region.x() * region.y(); i++)
+                {
+                    cols.push_back({options.col.x(), options.col.y(), options.col.z(), 1});
+                }
+
+                bool any_bad = top_left.x() < 0 || top_left.y() < 0 || top_left.x() + region.x() >= q1->image_dims[0] || top_left.y() + region.y() >= q1->image_dims[1];
+
+                if(!any_bad)
+                {
+                    q1->async_write_image(dye_write_queue, cols, top_left, region).auto_cleanup();
+                }
+
+                dye_write_queue.flush();
             }
 
             ///uuh

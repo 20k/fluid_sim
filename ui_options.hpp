@@ -3,12 +3,14 @@
 
 #include <vector>
 #include <string>
+#include <vec/vec.hpp>
 
 namespace options
 {
     enum options
     {
-        FLUID,
+        FLUID_VELOCITY,
+        FLUID_DYE,
         SAND,
         RIGID,
         BOUNDARY,
@@ -18,7 +20,8 @@ namespace options
     inline
     const char* names[]
     {
-        "Fluid",
+        "Fluid Velocity",
+        "Fluid Dye",
         "Sand",
         "Rigidbody",
         "Boundary",
@@ -29,6 +32,7 @@ struct ui_options
 {
     int brush = options::SAND;
     int brush_size = 1;
+    vec3f col = {1,1,1};
 
     void tick();
 };

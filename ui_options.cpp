@@ -12,5 +12,7 @@ void ui_options::tick()
 
     brush_size = clamp(brush_size, 1, 10);
 
+    ImGui::ColorPicker3("Colour", &col.v[0], ImGuiColorEditFlags_PickerHueWheel  );
+
     ImGui::End();
 }
