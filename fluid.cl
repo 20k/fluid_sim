@@ -88,7 +88,7 @@ void fluid_jacobi(__read_only image2d_t xvector, __read_only image2d_t bvector, 
 }
 
 __kernel
-void fluid_jacobi_rb(__read_only image2d_t xvector, __read_only image2d_t bvector, __write_only image2d_t out, float alpha, float rbeta, int red)
+void fluid_jacobi_rb(__read_only image2d_t xvector, __read_only image2d_t bvector, __write_only image2d_t out, float alpha, float rbeta, int red, float weight)
 {
     sampler_t sam = CLK_NORMALIZED_COORDS_FALSE |
                     CLK_ADDRESS_CLAMP_TO_EDGE |
@@ -124,6 +124,8 @@ void fluid_jacobi_rb(__read_only image2d_t xvector, __read_only image2d_t bvecto
     if(pos.x == gw)
         pos.x = 0;
 
+    float4 xC = read_imagef(xvector, sam, pos);
+
     float4 xL = read_imagef(xvector, sam, pos - (int2){1, 0});
     float4 xR = read_imagef(xvector, sam, pos + (int2){1, 0});
     float4 xB = read_imagef(xvector, sam, pos - (int2){0, 1});
@@ -131,7 +133,7 @@ void fluid_jacobi_rb(__read_only image2d_t xvector, __read_only image2d_t bvecto
 
     float4 bC = read_imagef(bvector, sam, pos);
 
-    float4 xnew = (xL + xR + xB + xT + alpha * bC) * rbeta;
+    float4 xnew = xC + weight * (xL + xR + xB + xT + alpha * bC - 4 * xC) * rbeta;
 
     write_imagef(out, convert_int2(pos), xnew);
 }

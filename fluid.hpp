@@ -537,7 +537,7 @@ struct fluid_manager
 
         cqueue.exec("fluid_divergence", divergence_args, velocity_dim, {16, 16});
 
-        int pressure_iterations_diff = 20;
+        int pressure_iterations_diff = 10;
 
         ///source of slowdown
         ///need the ability to create specific textures
@@ -549,7 +549,9 @@ struct fluid_manager
             float rbeta = 1/4.f;
 
             cl::buffer* p1 = get_pressure_buf(0);
-            //cl::buffer* p2 = get_pressure_buf(1);
+            cl::buffer* p2 = get_pressure_buf(1);
+
+            float optimal_w = 1.8;
 
             int red = 0;
 
@@ -560,6 +562,7 @@ struct fluid_manager
             pressure_args.push_back(alpha);
             pressure_args.push_back(rbeta);
             pressure_args.push_back(red);
+            pressure_args.push_back(optimal_w);
 
             cqueue.exec("fluid_jacobi_rb", pressure_args, {velocity_dim.x() / 2, velocity_dim.y()}, {16, 16});
 
@@ -572,12 +575,9 @@ struct fluid_manager
             pressure_args_red.push_back(alpha);
             pressure_args_red.push_back(rbeta);
             pressure_args_red.push_back(red);
+            pressure_args_red.push_back(optimal_w);
 
             cqueue.exec("fluid_jacobi_rb", pressure_args_red, {velocity_dim.x() / 2, velocity_dim.y()}, {16, 16});
-
-            //flip_pressure();
-
-            //pressure_boundary(program, cqueue);
         }
 
         pressure_boundary(cqueue);
