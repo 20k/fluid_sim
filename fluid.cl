@@ -102,8 +102,7 @@ void fluid_jacobi_rb(__read_only image2d_t xvector, __read_only image2d_t bvecto
     if(pos.x >= gw || pos.y >= gh)
         return;
 
-    ///todo: make this all arithmetic
-    if(red)
+    /*if(red)
     {
         if((pos.y % 2) == 0)
         {
@@ -117,7 +116,10 @@ void fluid_jacobi_rb(__read_only image2d_t xvector, __read_only image2d_t bvecto
         {
             pos.x += 1;
         }
-    }
+    }*/
+
+    ///equivalent ot the above comment, produces red/black checkerboard
+    pos.x += ((pos.y & 1) == !red);
 
     if(pos.x == gw)
         pos.x = 0;
