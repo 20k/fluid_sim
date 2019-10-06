@@ -88,6 +88,53 @@ void fluid_jacobi(__read_only image2d_t xvector, __read_only image2d_t bvector, 
 }
 
 __kernel
+void fluid_jacobi_rb(__read_only image2d_t xvector, __read_only image2d_t bvector, __write_only image2d_t out, float alpha, float rbeta, int red)
+{
+    sampler_t sam = CLK_NORMALIZED_COORDS_FALSE |
+                    CLK_ADDRESS_CLAMP_TO_EDGE |
+                    CLK_FILTER_NEAREST;
+
+    int2 pos = (int2){get_global_id(0)*2, get_global_id(1)};
+
+    int gw = get_image_width(xvector);
+    int gh = get_image_height(xvector);
+
+    if(pos.x >= gw || pos.y >= gh)
+        return;
+
+    ///todo: make this all arithmetic
+    if(red)
+    {
+        if((pos.y % 2) == 0)
+        {
+            pos.x += 1;
+        }
+    }
+
+    if(!red)
+    {
+        if((pos.y % 2) == 1)
+        {
+            pos.x += 1;
+        }
+    }
+
+    if(pos.x == gw)
+        pos.x = 0;
+
+    float4 xL = read_imagef(xvector, sam, pos - (int2){1, 0});
+    float4 xR = read_imagef(xvector, sam, pos + (int2){1, 0});
+    float4 xB = read_imagef(xvector, sam, pos - (int2){0, 1});
+    float4 xT = read_imagef(xvector, sam, pos + (int2){0, 1});
+
+    float4 bC = read_imagef(bvector, sam, pos);
+
+    float4 xnew = (xL + xR + xB + xT + alpha * bC) * rbeta;
+
+    write_imagef(out, convert_int2(pos), xnew);
+}
+
+__kernel
 void fluid_divergence(__read_only image2d_t vector_field_in, __write_only image2d_t out)
 {
     sampler_t sam = CLK_NORMALIZED_COORDS_FALSE |

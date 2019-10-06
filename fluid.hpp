@@ -497,7 +497,7 @@ struct fluid_manager
 
         for(int i=0; i < jacobi_iterations_diff; i++)
         {
-            float viscosity = 0.0000001f;
+            float viscosity = 0.000001f;
 
             float vdt = viscosity * timestep_s;
 
@@ -549,18 +549,33 @@ struct fluid_manager
             float rbeta = 1/4.f;
 
             cl::buffer* p1 = get_pressure_buf(0);
-            cl::buffer* p2 = get_pressure_buf(1);
+            //cl::buffer* p2 = get_pressure_buf(1);
+
+            int red = 0;
 
             cl::args pressure_args;
             pressure_args.push_back(p1);
             pressure_args.push_back(divergence);
-            pressure_args.push_back(p2);
+            pressure_args.push_back(p1);
             pressure_args.push_back(alpha);
             pressure_args.push_back(rbeta);
+            pressure_args.push_back(red);
 
-            cqueue.exec("fluid_jacobi", pressure_args, velocity_dim, {16, 16});
+            cqueue.exec("fluid_jacobi_rb", pressure_args, {velocity_dim.x() / 2, velocity_dim.y()}, {16, 16});
 
-            flip_pressure();
+            red = 1;
+
+            cl::args pressure_args_red;
+            pressure_args_red.push_back(p1);
+            pressure_args_red.push_back(divergence);
+            pressure_args_red.push_back(p1);
+            pressure_args_red.push_back(alpha);
+            pressure_args_red.push_back(rbeta);
+            pressure_args_red.push_back(red);
+
+            cqueue.exec("fluid_jacobi_rb", pressure_args_red, {velocity_dim.x() / 2, velocity_dim.y()}, {16, 16});
+
+            //flip_pressure();
 
             //pressure_boundary(program, cqueue);
         }
