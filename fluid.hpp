@@ -515,7 +515,7 @@ struct fluid_manager
             diffuse_args.push_back(alpha);
             diffuse_args.push_back(rbeta);
 
-            cqueue.exec("fluid_jacobi", diffuse_args, velocity_dim, {8, 8});
+            cqueue.exec("fluid_jacobi", diffuse_args, velocity_dim, {16, 16});
 
             flip_velocity();
 
@@ -558,7 +558,7 @@ struct fluid_manager
             pressure_args.push_back(alpha);
             pressure_args.push_back(rbeta);
 
-            cqueue.exec("fluid_jacobi", pressure_args, velocity_dim, {8, 8});
+            cqueue.exec("fluid_jacobi", pressure_args, velocity_dim, {16, 16});
 
             flip_pressure();
 
