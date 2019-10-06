@@ -159,13 +159,13 @@ struct fluid_manager
         velocity[0]->alloc_img(cqueue, velocity_info, velocity_dim, CL_RG, CL_FLOAT);
         velocity[1]->alloc_img(cqueue, velocity_info, velocity_dim, CL_RG, CL_FLOAT);
 
-        pressure[0]->alloc_img(cqueue, zero_data, velocity_dim, CL_R, CL_HALF_FLOAT);
-        pressure[1]->alloc_img(cqueue, zero_data, velocity_dim, CL_R, CL_HALF_FLOAT);
+        pressure[0]->alloc_img(cqueue, zero_data, velocity_dim, CL_R, CL_FLOAT);
+        pressure[1]->alloc_img(cqueue, zero_data, velocity_dim, CL_R, CL_FLOAT);
 
-        divergence->alloc_img(cqueue, zero_data, velocity_dim, CL_R, CL_HALF_FLOAT);
+        divergence->alloc_img(cqueue, zero_data, velocity_dim, CL_R, CL_FLOAT);
         boundaries->alloc_img(cqueue, boundary_data, velocity_dim, CL_R, CL_SIGNED_INT8);
 
-        physics_particles_boundary->alloc_img(cqueue, zero_data, velocity_dim, CL_R, CL_HALF_FLOAT);
+        physics_particles_boundary->alloc_img(cqueue, zero_data, velocity_dim, CL_R, CL_FLOAT);
 
         dye[0]->alloc_img(cqueue, dye_concentrates, dye_dim);
         dye[1]->alloc_img(cqueue, dye_concentrates, dye_dim);
@@ -495,6 +495,10 @@ struct fluid_manager
         ///if we have a 2x2 deficit in size, we need a 4 grid scale
         float dx = 1;
 
+        int reduce_factor = 2;
+
+        int len_2d = (velocity_dim.x() * velocity_dim.y()) / reduce_factor;
+
         for(int i=0; i < jacobi_iterations_diff; i++)
         {
             float viscosity = 0.0000001f;
@@ -515,7 +519,7 @@ struct fluid_manager
             diffuse_args.push_back(alpha);
             diffuse_args.push_back(rbeta);
 
-            cqueue.exec("fluid_jacobi", diffuse_args, velocity_dim, {16, 16});
+            cqueue.exec("fluid_jacobi", diffuse_args, {len_2d}, {64});
 
             flip_velocity();
 
@@ -537,7 +541,7 @@ struct fluid_manager
 
         cqueue.exec("fluid_divergence", divergence_args, velocity_dim, {16, 16});
 
-        int pressure_iterations_diff = 20;
+        int pressure_iterations_diff = 60;
 
         ///source of slowdown
         ///need the ability to create specific textures
@@ -558,7 +562,7 @@ struct fluid_manager
             pressure_args.push_back(alpha);
             pressure_args.push_back(rbeta);
 
-            cqueue.exec("fluid_jacobi", pressure_args, velocity_dim, {16, 16});
+            cqueue.exec("fluid_jacobi", pressure_args, {len_2d}, {64});
 
             flip_pressure();
 

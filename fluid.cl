@@ -67,26 +67,45 @@ void fluid_jacobi(__read_only image2d_t xvector, __read_only image2d_t bvector, 
                     CLK_ADDRESS_CLAMP_TO_EDGE |
                     CLK_FILTER_NEAREST;
 
-    float2 pos = (float2){get_global_id(0), get_global_id(1)};
+    int len = 2;
 
+    int pgid = get_global_id(0) * len;
     int gw = get_image_width(xvector);
     int gh = get_image_height(xvector);
 
-    if(pos.x >= gw || pos.y >= gh)
+    if(pgid >= gw * gh)
         return;
 
-    pos += 0.5f;
+    int py = pgid / gw;
+    int px = pgid % gw;
 
-    float4 xL = read_imagef(xvector, sam, pos - (float2){1, 0});
-    float4 xR = read_imagef(xvector, sam, pos + (float2){1, 0});
-    float4 xB = read_imagef(xvector, sam, pos - (float2){0, 1});
-    float4 xT = read_imagef(xvector, sam, pos + (float2){0, 1});
+    int2 pos = {px, py};
 
-    float4 bC = read_imagef(bvector, sam, pos);
+    float4 arr[8 + 2];
 
-    float4 xnew = (xL + xR + xB + xT + alpha * bC) * rbeta;
+    for(int i=-1; i < len+1; i++)
+    {
+        arr[i + 1] = read_imagef(xvector, sam, pos + (int2){i, 0});
+    }
 
-    write_imagef(out, convert_int2(pos), xnew);
+    for(int i=0; i < len; i++)
+    {
+        //float4 xL = read_imagef(xvector, sam, pos - (int2){1, 0});
+        //float4 xR = read_imagef(xvector, sam, pos + (int2){1, 0});
+
+        float4 xL = arr[i];
+        float4 xR = arr[i+2];
+        float4 xB = read_imagef(xvector, sam, pos - (int2){0, 1});
+        float4 xT = read_imagef(xvector, sam, pos + (int2){0, 1});
+
+        float4 bC = read_imagef(bvector, sam, pos);
+
+        float4 xnew = (xL + xR + xB + xT + alpha * bC) * rbeta;
+
+        write_imagef(out, convert_int2(pos), xnew);
+
+        pos.x += 1;
+    }
 }
 
 __kernel

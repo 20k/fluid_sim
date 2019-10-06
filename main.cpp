@@ -245,8 +245,21 @@ int main()
 
                 float max_diff = ceil(mdiff.largest_elem());
 
+                auto write_at = [&](vec2f pos)
+                {
+                    for(int y=-options.brush_size + 1; y < options.brush_size; y++)
+                    {
+                        for(int x=-options.brush_size + 1; x < options.brush_size; x++)
+                        {
+                            vec2f local_pos = pos + (vec2f){x, y};
+
+                            fluid_manage.write_boundary(cqueue, local_pos, 0.f);
+                        }
+                    }
+                };
+
                 if(max_diff == 0)
-                    fluid_manage.write_boundary(cqueue, cur_mouse, 0.f);
+                    write_at(cur_mouse);
                 else
                 {
                     vec2f step = mdiff / max_diff;
@@ -254,7 +267,7 @@ int main()
 
                     for(int i=0; i < max_diff + 1; i++, start += step)
                     {
-                        fluid_manage.write_boundary(cqueue, start, 0.f);
+                        write_at(start);
                     }
                 }
             }
