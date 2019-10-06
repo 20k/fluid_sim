@@ -539,10 +539,9 @@ struct fluid_manager
 
         int pressure_iterations_diff = 10;
 
-        ///source of slowdown
-        ///need the ability to create specific textures
-        ///aka we want half float single channel
-        ///not full float quad channel
+        //https://people.eecs.berkeley.edu/~demmel/cs267/lecture24/lecture24.html
+        ///thanks berkley!
+
         for(int i=0; i < pressure_iterations_diff; i++)
         {
             float alpha = -(dx * dx);
