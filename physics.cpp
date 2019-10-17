@@ -211,7 +211,7 @@ void phys_cpu::physics_body::tick(double timestep_s, double fluid_timestep_s)
 
     float fluid_velocity_fraction = 0.001f;
 
-    body->applyCentralForce(btVector3(0, 9.8, 0));
+    //body->applyCentralForce(btVector3(0, 9.8, 0));
 
     for(int i=0; i < physics_vertices.size(); i++)
     {
@@ -474,8 +474,8 @@ void phys_cpu::physics_rigidbodies::init(cl::context& ctx, cl::buffer_manager& b
 
     dynamicsWorld = new btDiscreteDynamicsWorld(dispatcher, broadphase, solver, collisionConfiguration);
 
-    //dynamicsWorld->setGravity(btVector3(0, 9.8, 0));
-    dynamicsWorld->setGravity(btVector3(0, 0, 0));
+    dynamicsWorld->setGravity(btVector3(0, 9.8, 0));
+    //dynamicsWorld->setGravity(btVector3(0, 0, 0));
 
     btCollisionShape* groundShape = new btStaticPlaneShape(btVector3(0, 1, 0), 1);
 

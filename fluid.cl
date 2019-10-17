@@ -582,6 +582,7 @@ struct physics_particle
 {
     float2 pos;
     uint32_t icol;
+    float mass;
 };
 
 uint32_t rgba_to_uint(float4 rgba)

@@ -12,7 +12,7 @@ struct physics_particle
     //vec2f unused_velocity = {0,0};
     //vec4f col = {0, 0, 1, 1};
     uint32_t col = 0;
-    uint32_t pad = 0;
+    float mass = 1;
 };
 
 vec3f hue_from_h(float H)
@@ -537,7 +537,7 @@ struct fluid_manager
 
         cqueue.exec("fluid_divergence", divergence_args, velocity_dim, {16, 16});
 
-        int pressure_iterations_diff = 40;
+        int pressure_iterations_diff = 20;
 
         //https://people.eecs.berkeley.edu/~demmel/cs267/lecture24/lecture24.html
         ///thanks berkley!

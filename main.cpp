@@ -258,7 +258,7 @@ int main()
                     {
                         physics_particle part;
                         part.pos = {mpos.x() + x, screen_dim.y() - (mpos.y() + y)};
-                        part.col = 0xFFFFFFFF;
+                        part.col = rgba_to_uint(options.col);
 
                         next.push_back(part);
                     }
@@ -266,7 +266,7 @@ int main()
 
                 fluid_manage.physics_particles->resize(cqueue, old_size + next.size() * sizeof(physics_particle));
 
-                fluid_manage.physics_particles->async_write(cqueue, next, {old_num, 0});
+                fluid_manage.physics_particles->async_write(cqueue, next, {old_num, 0}).auto_cleanup();
             }
 
             if(options.brush == options::BOUNDARY)
