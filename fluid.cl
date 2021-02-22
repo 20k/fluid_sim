@@ -637,92 +637,31 @@ float2 any_free_neighbour_pos(float2 occupied, __read_only image2d_t physics_par
         mult = -1;
     }
 
-    for(int y=-1; y<=-1; y++)
+    int y = -1;
+    int x = -1 * mult;
+
+    float2 rcd = occupied + (float2){x, y};
+
+    float4 res = read_imagef(physics_particles, sam, rcd);
+
+    if(res.x > 0)
     {
-        for(int x=-1*mult; x<=-1*mult; x++)
-        {
-            if(x == 0 && y == 0)
-                continue;
-
-            float2 rcd = occupied + (float2){x, y};
-
-            float4 res = read_imagef(physics_particles, sam, rcd);
-
-            if(res.x > 0)
-                continue;
-
-            float4 r2 = read_imagef(boundaries, sam, rcd);
-
-            if(r2.x > 0)
-                continue;
-
-            *found = 1;
-
-            return rcd;
-        }
+        *found = 0;
+        return occupied;
     }
 
-    *found = 0;
+    float4 r2 = read_imagef(boundaries, sam, rcd);
 
-    return occupied;
-}
-
-#if 1
-float2 get_free_neighbour_pos(float2 move_vector, float2 initial, float2 occupied, __read_only image2d_t physics_particles, __read_only image2d_t boundaries, int* found)
-{
-    sampler_t sam = CLK_NORMALIZED_COORDS_FALSE |
-                    CLK_ADDRESS_CLAMP_TO_EDGE |
-                    CLK_FILTER_NEAREST;
-
-    for(int y=-1; y<=1; y++)
+    if(r2.x > 0)
     {
-        for(int x=-1; x<=1; x++)
-        {
-            if(x == 0 && y == 0)
-                continue;
-
-            float2 to_initial_v = initial - occupied;
-            float2 current_v = (float2){x, y};
-
-            float angle = acos(dot(normalize(to_initial_v), normalize(current_v)));
-
-            //if(fabs(angle) >= M_PI/2.f)
-            //    continue;
-
-            float2 nmove = normalize(move_vector);
-            float2 ncurrent = normalize(current_v);
-
-            float nangle = acos(dot(nmove, ncurrent));
-
-            if(fabs(nangle) <= M_PI/2.f)
-                continue;
-
-            float2 rcd = occupied + (float2){x, y};
-
-            float4 res = read_imagef(physics_particles, sam, rcd + 0.5f);
-
-            if(res.x > 0)
-                continue;
-
-            int4 r2 = read_imagei(boundaries, sam, rcd + 0.5f);
-
-            if(r2.x > 0)
-                continue;
-
-            float2 ret = rcd;
-
-            *found = 1;
-
-            return ret;
-        }
+        *found = 0;
+        return occupied;
     }
 
-    *found = 0;
+    *found = 1;
 
-    return occupied;
+    return rcd;
 }
-#endif
-
 
 ///so first: need to check if any particles are between us and destination
 ///stop if we hit one
@@ -751,9 +690,6 @@ void falling_sand_physics(__read_only image2d_t velocity, __global struct physic
         return;
 
     float2 pos = particles[gid].pos;
-    //float4 ecol = particles[gid].col;
-
-    //ecol = (float4)(0.3, 0.3, 1, 1);
 
     sampler_t sam = CLK_NORMALIZED_COORDS_FALSE |
                     CLK_ADDRESS_CLAMP_TO_EDGE |
@@ -840,7 +776,6 @@ void falling_sand_physics(__read_only image2d_t velocity, __global struct physic
     }
 
     particles[gid].pos = new_pos;
-    //particles[gid].col = ecol;
 
     write_imagef(physics_particles_out, convert_int2(new_pos), (float4)(gid + 1, would_move, 0, 0));
 }
@@ -998,7 +933,6 @@ void falling_sand_edge_boundary_condition(__read_only image2d_t physics_particle
 
     write_imagef(boundaries_out, convert_int2(convert_float2(pos) / scale), frac);
 
-
     write_imagef(velocity_out, convert_int2(convert_float2(pos) / scale), vel);
 
     //if(frac > 0)
@@ -1027,24 +961,9 @@ void falling_sand_render(__global struct physics_particle* particles, int partic
     if(pos.x > gw-1 || pos.x < 0 || pos.y > gh-1 || pos.y < 0)
         return;
 
-    //float4 col = particles[gid].col;
-
     float4 col = uint_to_rgba(particles[gid].icol);
 
     write_imagef(screen, convert_int2(pos), (float4){col.xyz,1});
-
-    /*for(int y=-1; y <= 1; y++)
-    {
-        for(int x = -1; x <= 1; x++)
-        {
-            if(abs(x) == abs(y) && abs(x) == 1)
-                continue;
-
-            float2 new_pos = pos + (float2){x, y};
-
-            write_imagef(screen, convert_int2(new_pos), (float4)(1,1,1,1));
-        }
-    }*/
 }
 
 ///this is purely to work around opengl formats
